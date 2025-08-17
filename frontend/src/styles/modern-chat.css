@@ -1,0 +1,345 @@
+/* Modern Chat UI Styles */
+
+/* Custom scrollbar for messages */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(243, 244, 246, 0.3);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #6366f1, #8b5cf6);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #4f46e5, #7c3aed);
+}
+
+/* Message bubble animations */
+.message-bubble {
+  animation: messageSlideIn 0.3s ease-out;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Hover effects for message bubbles */
+.message-bubble:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+/* Glass morphism effects */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Gradient text effect */
+.gradient-text {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Floating animation for icons */
+.float-animation {
+  animation: floating 3s ease-in-out infinite;
+}
+
+@keyframes floating {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Modern button hover effects */
+.modern-button {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modern-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.modern-button:hover::before {
+  left: 100%;
+}
+
+/* Typing indicator enhanced animation */
+.typing-dot {
+  animation: typingBounce 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+/* Connection status pulse animation */
+.connection-pulse {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
+}
+
+/* Modern shadow effects */
+.shadow-modern {
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.shadow-modern-lg {
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Image loading skeleton */
+.image-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Modern input focus effects */
+.modern-input {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modern-input:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 25px rgba(99, 102, 241, 0.15);
+}
+
+/* Message timestamp fade in */
+.timestamp-hover {
+  opacity: 0;
+  transform: scale(0.9);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.group:hover .timestamp-hover {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Audio player modern styling */
+audio {
+  border-radius: 12px;
+  height: 40px;
+}
+
+audio::-webkit-media-controls-panel {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+}
+
+/* Modern loading spinner */
+.modern-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #6366f1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Success animation for sent messages */
+.success-checkmark {
+  animation: checkmark 0.5s ease-in-out;
+}
+
+@keyframes checkmark {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Modern gradient backgrounds */
+.bg-gradient-modern {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-chat {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.bg-gradient-message {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .message-bubble {
+    max-width: 85vw;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+}
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark) {
+  .glass-effect {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(55, 65, 81, 0.3);
+  }
+}
+
+/* Explicit dark theme controlled by JS (applies when document.documentElement has .dark-theme) */
+.dark-theme body,
+.dark-theme #root,
+.dark-theme .min-h-screen {
+  background: linear-gradient(180deg, #0f172a 0%, #071033 100%) !important;
+  color: #e6eef8 !important;
+}
+
+.dark-theme .bg-gradient-to-r.from-indigo-600 {
+  background: linear-gradient(90deg, #0f172a 0%, #0b2540 100%) !important;
+}
+
+.dark-theme .message-bubble {
+  background: rgba(15, 23, 42, 0.7) !important;
+  color: #e6eef8 !important;
+  border-color: rgba(255,255,255,0.03) !important;
+}
+
+.dark-theme .message-bubble .message-bubble-tail {
+  background: rgba(15, 23, 42, 0.7) !important;
+}
+
+.dark-theme .glass-effect {
+  background: rgba(10, 12, 20, 0.45) !important;
+  border: 1px solid rgba(255,255,255,0.04) !important;
+}
+
+.dark-theme .gradient-text {
+  background: linear-gradient(135deg, #7c9cff, #6dd3ff) !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.dark-theme .modern-input {
+  background: rgba(255,255,255,0.02) !important;
+  color: #dbeafe !important;
+  border: 1px solid rgba(255,255,255,0.04) !important;
+}
+
+.dark-theme .timestamp-hover > div {
+  background: rgba(0,0,0,0.7) !important;
+  color: #e6eef8 !important;
+}
+
+.dark-theme .text-gray-500,
+.dark-theme .text-gray-600,
+.dark-theme .text-gray-700,
+.dark-theme .text-gray-800 {
+  color: #cbd5e1 !important;
+}
+
+.dark-theme .modern-button {
+  color: #e6eef8 !important;
+}
+
+.dark-theme .modern-spinner {
+  border-top-color: #7c9cff !important;
+}
+
+.dark-theme .custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(2,6,23,0.4) !important;
+}
+
+.dark-theme .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #334155, #1e293b) !important;
+}
+
+/* small helper for delivered/read labels to show contrast */
+.dark-theme .text-gray-400 { color: #94a3b8 !important; }
+.dark-theme .text-blue-400 { color: #93c5fd !important; }
+
+/* Ensure timestamp badge is visible on received messages in dark mode */
+.dark-theme .message-time-badge {
+  background: rgba(255,255,255,0.04) !important;
+  color: #dbeafe !important;
+  border: 1px solid rgba(255,255,255,0.03) !important;
+}
+
+/* For received messages that used text-gray-* classes, increase contrast */
+.dark-theme .text-gray-500 { color: #9fb0c8 !important; }
+.dark-theme .text-gray-600 { color: #94a3b8 !important; }
+.dark-theme .text-white\/70 { color: rgba(230,238,248,0.7) !important; }
+
