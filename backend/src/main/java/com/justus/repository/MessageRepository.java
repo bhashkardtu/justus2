@@ -7,5 +7,6 @@ import java.util.List;
 public interface MessageRepository extends MongoRepository<Message, String> {
     List<Message> findBySenderIdOrReceiverIdOrderByTimestampAsc(String senderId, String receiverId);
     List<Message> findByConversationIdOrderByTimestampAsc(String conversationId);
+    List<Message> findByConversationIdAndDeletedFalseOrderByTimestampAsc(String conversationId);
     List<Message> findByConversationIdAndReceiverIdAndReadFalse(String conversationId, String receiverId);
 }

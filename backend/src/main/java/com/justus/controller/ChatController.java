@@ -47,8 +47,8 @@ public class ChatController {
                 System.out.println("User not participant in conversation");
                 return List.of();
             }
-            List<Message> messages = messageRepository.findByConversationIdOrderByTimestampAsc(conversationId);
-            System.out.println("Found " + messages.size() + " messages in conversation");
+            List<Message> messages = messageRepository.findByConversationIdAndDeletedFalseOrderByTimestampAsc(conversationId);
+            System.out.println("Found " + messages.size() + " non-deleted messages in conversation");
             for (Message msg : messages) {
                 System.out.println("Message: id=" + msg.getId() + ", sender=" + msg.getSenderId() + ", receiver=" + msg.getReceiverId() + ", type=" + msg.getType() + ", content=" + msg.getContent());
             }
