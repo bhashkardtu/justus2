@@ -37,7 +37,7 @@ export function connectSocket(token, onMessage, onConnected, handlers = {}){
   }
 
   client = new Client({
-    webSocketFactory: () => new SockJS('http://localhost:8080/ws?token=' + token),
+    webSocketFactory: () => new SockJS('http://justus-9hwt.onrender.com/ws?token=' + token),
     reconnectDelay: 5000,
     heartbeatIncoming: 10000,
     heartbeatOutgoing: 10000,

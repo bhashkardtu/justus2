@@ -15,7 +15,7 @@
     "postcss": "^8.4.24",
     "autoprefixer": "^10.4.14"
   },
-  "proxy": "http://localhost:8080",
+  "proxy": "http://justus-9hwt.onrender.com",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
