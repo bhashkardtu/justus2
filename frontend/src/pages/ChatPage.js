@@ -887,7 +887,7 @@ export default function ChatPage({ user, onLogout }){
       console.log('Image uploaded to server with ID:', id);
       
       // Use full URL with hostname (authentication will be handled by MessageItem)
-      const url = `http://justus-9hwt.onrender.com/api/media/file/${id}`;
+      const url = `https://justus-9hwt.onrender.com/api/media/file/${id}`;
       
       console.log('Image uploaded successfully, ID:', id, 'URL:', url);
       
@@ -976,7 +976,7 @@ export default function ChatPage({ user, onLogout }){
           });
           const id = res.data.id;
           // Use full URL with hostname (authentication will be handled by MessageItem)
-          const url = `http://justus-9hwt.onrender.com/api/media/file/${id}`;
+          const url = `https://justus-9hwt.onrender.com/api/media/file/${id}`;
           console.log('Audio uploaded successfully, ID:', id, 'URL:', url);
           
           // Create a temporary message for optimistic UI update
