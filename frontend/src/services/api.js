@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({ 
-    baseURL: 'http://justus-9hwt.onrender.com',
+    baseURL: 'https://justus-9hwt.onrender.com',
     withCredentials: true // Important: This ensures cookies are sent with requests
 });
 
@@ -23,7 +23,7 @@ api.interceptors.request.use(
 export function getAuthenticatedApi() {
     const token = localStorage.getItem('token');
     const authenticatedApi = axios.create({ 
-        baseURL: 'http://justus-9hwt.onrender.com',
+        baseURL: 'https://justus-9hwt.onrender.com',
         withCredentials: true // Ensure cookies are sent
     });
     
