@@ -20,12 +20,14 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
         try {
           setImageLoading(true);
           setImageError(false);
+          setBlobUrl(null); // Clear any previous blob URL
           
           // Extract media ID from URL for caching
           const urlParts = m.content.split('/');
           const mediaId = urlParts[urlParts.length - 1].split('?')[0];
           
-          console.log('Loading authenticated media for ID:', mediaId);
+          console.log('MessageItem: Loading authenticated media for ID:', mediaId, 'URL:', m.content);
+          console.log('MessageItem: Is temporary?', isTemporary);
           
           // Add a small delay to ensure authentication is properly set
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -35,13 +37,13 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
           setBlobUrl(authenticatedBlobUrl);
           setImageLoading(false);
           
-          console.log('Successfully loaded authenticated media:', authenticatedBlobUrl);
+          console.log('MessageItem: Successfully loaded authenticated media:', authenticatedBlobUrl);
         } catch (error) {
-          console.error('Failed to load authenticated media:', error);
+          console.error('MessageItem: Failed to load authenticated media:', error);
           
           // If first attempt fails, try once more after a short delay
           if (retryCount === 0) {
-            console.log('First attempt failed, trying automatic retry...');
+            console.log('MessageItem: First attempt failed, trying automatic retry...');
             setTimeout(() => {
               setRetryCount(1);
             }, 1000);
@@ -51,9 +53,10 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
             console.log('Media authentication failed - check if user is logged in');
           }
         }
-      } else if ((m.type === 'image' || m.type === 'audio') && m.content) {
-        // For temporary messages, use the URL directly
+      } else if ((m.type === 'image' || m.type === 'audio') && m.content && isTemporary) {
+        // For temporary messages, use the URL directly and set it as both mediaUrl and blobUrl
         setMediaUrl(m.content);
+        setBlobUrl(m.content);  // Set blobUrl so the image/audio displays
         setImageLoading(false);
       }
     };
@@ -195,13 +198,18 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                         <div className="modern-spinner"></div>
                       </div>
                     )}
-                    {imageError ? (
+                    {(imageError || !blobUrl) ? (
                       <div className="w-64 h-40 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center border border-gray-200">
                         <div className="text-center text-gray-500 p-4">
                           <svg className="w-8 h-8 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                           </svg>
-                          <p className="text-xs mb-3 font-medium">Image requires authentication</p>
+                          <p className="text-xs mb-3 font-medium">
+                            {imageError ? 'Failed to load image' : 'Loading image...'}
+                          </p>
+                          <p className="text-xs mb-3 text-gray-400">
+                            Debug: blobUrl={blobUrl ? 'present' : 'null'}, error={imageError.toString()}
+                          </p>
                           <div className="space-y-2">
                             <button 
                               className="px-4 py-2 bg-indigo-500 text-white text-xs rounded-xl hover:bg-indigo-600 transition-all duration-300 shadow-lg modern-button"
@@ -226,7 +234,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                                   setRetryCount(prev => prev + 1);
                                 }}
                               >
-                                Retry Loading
+                                Retry Loading ({retryCount}/3)
                               </button>
                             )}
                           </div>
@@ -234,20 +242,22 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                       </div>
                     ) : (
                       <img 
-                        src={blobUrl || mediaUrl} 
+                        src={blobUrl} 
                         alt="Shared image"
                         className={`max-w-xs rounded-2xl cursor-pointer transition-all duration-300 hover:scale-105 shadow-lg ${
                           imageLoading ? 'opacity-0 absolute' : 'opacity-100'
                         }`}
                         onLoad={(e) => {
+                          console.log('MessageItem: Image loaded successfully from blob URL');
                           setImageLoading(false);
                           setImageError(false);
                         }}
                         onError={(e) => {
+                          console.error('MessageItem: Image failed to load from blob URL:', blobUrl);
                           setImageLoading(false);
                           setImageError(true);
                         }}
-                        onClick={() => window.open(blobUrl || mediaUrl, '_blank')}
+                        onClick={() => window.open(blobUrl, '_blank')}
                       />
                     )}
                   </div>
@@ -255,7 +265,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                 
                 {m.type === 'audio' && (
                   <div className="w-full">
-                    {imageError ? (
+                    {imageError || !blobUrl ? (
                       <div className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl p-4 border border-gray-200">
                         <div className="text-center text-gray-500">
                           <svg className="w-8 h-8 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -281,7 +291,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                       <div className={`p-3 rounded-2xl ${mine ? 'bg-white/20' : 'bg-gray-100/80'}`}>
                         <audio 
                           controls 
-                          src={blobUrl || mediaUrl} 
+                          src={blobUrl} 
                           className="w-full max-w-xs"
                           style={{ filter: mine ? 'invert(1) brightness(0.8)' : 'none' }}
                           onError={() => {

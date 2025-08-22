@@ -6,6 +6,7 @@ const mediaCache = new Map();
 export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
   // Check if we already have this media cached
   if (mediaCache.has(mediaId)) {
+    console.log('MediaLoader: Using cached media for ID:', mediaId);
     return mediaCache.get(mediaId);
   }
 
@@ -23,8 +24,11 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
     // Ensure we have a token before making the request
     const token = localStorage.getItem('token');
     if (!token) {
+      console.error('MediaLoader: No authentication token available');
       throw new Error('No authentication token available');
     }
+    
+    console.log('MediaLoader: Making authenticated request with token:', token.substring(0, 20) + '...');
     
     // Use regular api instance (it will include credentials/cookies automatically)
     const response = await api.get(apiUrl, {
@@ -35,6 +39,9 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
         'Authorization': `Bearer ${token}` // Explicitly include token
       }
     });
+    
+    console.log('MediaLoader: Response status:', response.status);
+    console.log('MediaLoader: Response headers:', response.headers);
     
     // Create a blob URL that can be used by img/audio tags
     const blob = response.data;
@@ -51,8 +58,19 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
       status: error.response?.status,
       statusText: error.response?.statusText,
       headers: error.response?.headers,
-      config: error.config
+      config: error.config,
+      message: error.message
     });
+    
+    // Log the specific error for debugging
+    if (error.response?.status === 401) {
+      console.error('MediaLoader: Authentication failed - token may be invalid or expired');
+    } else if (error.response?.status === 403) {
+      console.error('MediaLoader: Access forbidden - user may not be authorized for this media');
+    } else if (error.response?.status === 404) {
+      console.error('MediaLoader: Media file not found');
+    }
+    
     throw error;
   }
 };
