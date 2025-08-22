@@ -2,3 +2,4 @@ node_modules/
 build/
 
 .env
+../backend/src/main/resources/application.properties
