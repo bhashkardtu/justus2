@@ -95,11 +95,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
       <div className={`max-w-md lg:max-w-lg relative group ${mine ? 'ml-12' : 'mr-12'}`}>
         
         {/* Message Container */}
-        <div className={`message-bubble relative px-5 py-4 rounded-3xl backdrop-blur-sm border transition-all duration-300 shadow-modern ${
-          mine 
-            ? `bg-gradient-to-r from-indigo-500 to-purple-600 text-white border-indigo-300/30 ${isTemporary ? 'opacity-70 animate-pulse' : 'hover:shadow-modern-lg hover:scale-[1.02]'}` 
-            : 'glass-effect text-gray-900 border-gray-200/50 hover:shadow-modern-lg hover:scale-[1.02]'
-        }`}>
+        <div className={`signal-bubble ${mine ? 'signal-bubble-sent' : 'signal-bubble-received'} ${isTemporary ? 'opacity-70' : ''}`}>
           
           {/* Message Bubble Tail */}
           <div className={`absolute w-4 h-4 transform rotate-45 ${
@@ -109,7 +105,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
           }`}></div>
 
           {/* Message Header */}
-          <div className={`flex items-center justify-between mb-3 text-xs font-medium ${mine ? 'text-indigo-100' : 'text-gray-500'}`}>
+          <div className={`flex items-center justify-between mb-3 signal-text-xs ${mine ? 'text-white/80' : 'text-gray-500'}`}>
             <div className="flex items-center space-x-2">
               <div className={`w-2 h-2 rounded-full connection-pulse ${mine ? 'bg-indigo-200' : 'bg-indigo-500'}`}></div>
               <span className="font-semibold text-white">
@@ -118,8 +114,8 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
               </span>
             </div>
             <div className="flex items-center space-x-3">
-              <div className={`message-time-badge text-xs px-3 py-1 rounded-full backdrop-blur-sm ${mine ? 'bg-white/20' : 'bg-gray-100/80'}`}>
-                {formatTime(m.timestamp || m.createdAt)}
+              <div className="signal-timestamp">
+                <span>{formatTime(m.timestamp || m.createdAt)}</span>
               </div>
 
               {/* Inline read/delivered status next to time */}
@@ -146,13 +142,13 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
               {/* Dropdown trigger */}
               {mine && !m.deleted && (
                 <div className="relative">
-                  <button ref={triggerRef} onClick={() => setMenuOpen(s => !s)} className="p-1 rounded hover:bg-white/10 text-white/80">
+                  <button ref={triggerRef} onClick={() => setMenuOpen(s => !s)} className="signal-icon-button">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M6 10a2 2 0 114 0 2 2 0 01-4 0zm4 0a2 2 0 114 0 2 2 0 01-4 0zM2 10a2 2 0 114 0 2 2 0 01-4 0z" />
                     </svg>
                   </button>
                   {menuOpen && (
-                    <div ref={menuRef} className="absolute right-0 top-8 bg-white/90 text-gray-800 rounded-lg shadow-lg border border-gray-200 py-1 w-32 z-50">
+                    <div ref={menuRef} className="absolute right-0 top-8 bg-white text-gray-800 rounded-lg shadow-lg border border-gray-200 py-1 w-32 z-50 signal-slide-up">
                       <button onClick={() => { setMenuOpen(false); onEdit(m); }} className="w-full text-left px-3 py-2 hover:bg-gray-100">Edit</button>
                       <button onClick={() => { setMenuOpen(false); onDelete(m); }} className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600">Delete</button>
                     </div>

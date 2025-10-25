@@ -15,8 +15,8 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
     
     // Convert to relative URL for the API call to ensure headers are included
     let apiUrl = mediaUrl;
-    if (mediaUrl.startsWith('https://justus-9hwt.onrender.com')) {
-      apiUrl = mediaUrl.replace('https://justus-9hwt.onrender.com', '');
+    if (mediaUrl.startsWith('http://localhost:8080')) {
+      apiUrl = mediaUrl.replace('http://localhost:8080', '');
     }
     
     console.log('Using API URL:', apiUrl);

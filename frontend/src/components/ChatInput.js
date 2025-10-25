@@ -15,7 +15,7 @@ export default function ChatInput({ onSend, disabled }){
       <textarea
         value={text}
         onChange={e=>setText(e.target.value)}
-        className="modern-input w-full px-4 py-3 rounded-2xl resize-none focus:ring-2 focus:ring-indigo-300"
+        className="signal-input w-full resize-none"
         placeholder="Type a message..."
         rows={2}
         disabled={disabled}
@@ -24,7 +24,7 @@ export default function ChatInput({ onSend, disabled }){
       <button
         type="submit"
         disabled={!text.trim() || disabled}
-        className="modern-button px-4 py-3 bg-indigo-600 text-white rounded-2xl shadow-modern hover:bg-indigo-700 disabled:opacity-50"
+        className="signal-button disabled:opacity-50"
         aria-label="Send message"
       >
         Send

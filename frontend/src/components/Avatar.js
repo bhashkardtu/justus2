@@ -5,10 +5,9 @@ export default function Avatar({ user, size = 40, className = '' }) {
   const initials = user.displayName
     ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase()
     : (user.username ? user.username[0].toUpperCase() : '?');
-  const bgColor = user.avatarColor || 'bg-indigo-500';
   return (
     <div
-      className={`flex items-center justify-center rounded-full font-bold text-white shadow ${bgColor} ${className}`}
+      className={`signal-avatar flex items-center justify-center rounded-full font-bold text-white shadow ${className}`}
       style={{ width: size, height: size, fontSize: size / 2 }}
       aria-label={user.displayName || user.username}
     >

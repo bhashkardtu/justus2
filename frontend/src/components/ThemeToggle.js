@@ -1,32 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 
-export default function ThemeToggle() {
-  const [theme, setTheme] = useState('calm');
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('theme');
-      if (saved === 'warm') {
-        setTheme('warm');
-      } else {
-        setTheme('calm');
-      }
-    } catch (e) {
-      // ignore
-    }
-  }, []);
-
+export default function ThemeToggle({ theme, setTheme }) {
   const toggle = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
     try {
-      if (theme === 'calm') {
-        localStorage.setItem('theme', 'warm');
-        document.documentElement.classList.add('theme-warm');
-        setTheme('warm');
-      } else {
-        localStorage.setItem('theme', 'calm');
-        document.documentElement.classList.remove('theme-warm');
-        setTheme('calm');
-      }
+      localStorage.setItem('theme', newTheme);
     } catch (e) {
       // ignore
     }
@@ -35,10 +14,24 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      title="Toggle theme"
-      className="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-3 py-2 rounded-xl transition-all duration-300 font-medium shadow-lg border border-white/30"
+      title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+      style={{
+        background: theme === 'light' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
+        border: theme === 'light' ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
+        borderRadius: '50%',
+        width: '40px',
+        height: '40px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        transition: 'all 0.3s',
+        fontSize: '1.2rem'
+      }}
+      onMouseEnter={e => e.currentTarget.style.background = theme === 'light' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)'}
+      onMouseLeave={e => e.currentTarget.style.background = theme === 'light' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)'}
     >
-      {theme === 'calm' ? 'Calm' : 'Warm'}
+      {theme === 'light' ? '🌙' : '☀️'}
     </button>
   );
 }

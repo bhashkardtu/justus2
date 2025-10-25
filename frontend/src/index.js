@@ -1,7 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import './styles/modern-chat.css';
 import App from './App';
 
 // Apply saved theme early so there's no flash

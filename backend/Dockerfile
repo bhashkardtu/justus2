@@ -1,12 +1,13 @@
-# Step 1: Build the JAR using Maven
-FROM maven:3.9.6-eclipse-temurin-17 AS build
+# Step 1: Install dependencies
+FROM node:18-alpine AS builder
 WORKDIR /app
-COPY . .
-RUN mvn clean package -DskipTests
+COPY package*.json ./
+RUN npm ci --only=production
 
-# Step 2: Run the JAR with Java
-FROM eclipse-temurin:17-jdk
+# Step 2: Run the application
+FROM node:18-alpine
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=builder /app/node_modules ./node_modules
+COPY . .
 EXPOSE 8080
-CMD ["java", "-jar", "app.jar"]
+CMD ["node", "src/server.js"]
