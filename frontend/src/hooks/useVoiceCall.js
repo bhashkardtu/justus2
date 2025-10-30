@@ -11,12 +11,16 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
   const callTimerRef = useRef(null);
   const callStartTimeRef = useRef(null);
 
-  // WebRTC configuration
+  // WebRTC configuration with better STUN/TURN servers for production
   const rtcConfig = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' }
+    ],
+    iceCandidatePoolSize: 10
   };
 
   // Start call timer
@@ -79,8 +83,26 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
     try {
       setCallState('calling');
       
-      // Get user media
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      console.log('Requesting microphone access...');
+      
+      // Check if HTTPS (required for getUserMedia in production)
+      if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
+        alert('Voice calls require HTTPS connection. Please use a secure connection.');
+        setCallState('idle');
+        return;
+      }
+      
+      // Get user media with error handling
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }, 
+        video: false 
+      });
+      
+      console.log('Microphone access granted');
       localStreamRef.current = stream;
       
       // Create peer connection
@@ -103,7 +125,23 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
       
     } catch (error) {
       console.error('Error starting call:', error);
-      alert('Failed to start call. Please check microphone permissions.');
+      
+      let errorMessage = 'Failed to start call. ';
+      if (error.name === 'NotAllowedError') {
+        errorMessage += 'Microphone access denied. Please allow microphone permissions.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage += 'No microphone found. Please connect a microphone.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage += 'Microphone is already in use by another application.';
+      } else if (error.name === 'OverconstrainedError') {
+        errorMessage += 'Unable to satisfy audio constraints.';
+      } else if (error.name === 'SecurityError') {
+        errorMessage += 'Voice calls require HTTPS in production.';
+      } else {
+        errorMessage += error.message || 'Unknown error occurred.';
+      }
+      
+      alert(errorMessage);
       setCallState('idle');
     }
   };
@@ -115,8 +153,26 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
     try {
       setCallState('connected');
       
+      console.log('Answering call, requesting microphone...');
+      
+      // Check if HTTPS
+      if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
+        alert('Voice calls require HTTPS connection.');
+        rejectCall();
+        return;
+      }
+      
       // Get user media
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }, 
+        video: false 
+      });
+      
+      console.log('Microphone access granted for answer');
       localStreamRef.current = stream;
       
       // Create peer connection
@@ -144,7 +200,19 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
       
     } catch (error) {
       console.error('Error answering call:', error);
-      alert('Failed to answer call. Please check microphone permissions.');
+      
+      let errorMessage = 'Failed to answer call. ';
+      if (error.name === 'NotAllowedError') {
+        errorMessage += 'Microphone access denied.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage += 'No microphone found.';
+      } else if (error.name === 'SecurityError') {
+        errorMessage += 'Voice calls require HTTPS.';
+      } else {
+        errorMessage += error.message || 'Unknown error.';
+      }
+      
+      alert(errorMessage);
       rejectCall();
     }
   };
