@@ -58,6 +58,9 @@ configureSocketIO(io);
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/justus';
 const PORT = process.env.PORT || 8080;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+console.log(`Starting server in ${NODE_ENV} mode...`);
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
@@ -84,9 +87,10 @@ mongoose.connect(MONGODB_URI, {
   }
   
   // Start server
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`✓ Server is running on port ${PORT}`);
-    console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`✓ Environment: ${NODE_ENV}`);
+    console.log(`✓ Allowed Origins: ${allowedOrigins.join(', ')}`);
   });
 })
 .catch(err => {
