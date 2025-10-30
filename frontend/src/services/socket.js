@@ -1,5 +1,8 @@
 import { io } from 'socket.io-client';
 
+// Use environment variable for WebSocket URL, fallback to localhost
+const WS_URL = process.env.REACT_APP_WS_URL || 'http://localhost:8080';
+
 let socket = null;
 
 export function connectSocket(token, onMessage, onConnected, handlers = {}){
@@ -21,10 +24,11 @@ export function connectSocket(token, onMessage, onConnected, handlers = {}){
     }
   }
 
-  console.log('Creating new Socket.IO connection with token:', token ? 'present' : 'missing');
+  console.log('Creating new Socket.IO connection to:', WS_URL);
+  console.log('Token:', token ? 'present' : 'missing');
 
   // Create Socket.IO connection
-  socket = io('http://localhost:8080', {
+  socket = io(WS_URL, {
     auth: {
       token: token
     },

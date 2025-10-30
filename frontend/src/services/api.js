@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
 const api = axios.create({ 
-    baseURL: 'http://localhost:8080',
+    baseURL: API_URL,
     withCredentials: true // Important: This ensures cookies are sent with requests
 });
 
@@ -23,7 +25,7 @@ api.interceptors.request.use(
 export function getAuthenticatedApi() {
     const token = localStorage.getItem('token');
     const authenticatedApi = axios.create({ 
-        baseURL: 'http://localhost:8080',
+        baseURL: API_URL,
         withCredentials: true // Ensure cookies are sent
     });
     
