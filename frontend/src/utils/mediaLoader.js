@@ -3,7 +3,62 @@ import api, { getAuthenticatedApi } from '../services/api';
 
 const mediaCache = new Map();
 
-export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
+// New function for viewing/downloading PDFs and documents
+export const loadAuthenticatedMedia = async (url, mimeType, isPreview = false, filename = 'download') => {
+  try {
+    const token = localStorage.getItem('token');
+    
+    // Use the backend API URL, not the frontend URL
+    const apiURL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+    
+    // If url already starts with http, use it as is; otherwise prepend API URL
+    const fullUrl = url.startsWith('http') ? url : `${apiURL}${url}`;
+
+    console.log('Loading media from:', fullUrl); // Debug log
+
+    // Fetch with authentication
+    const response = await fetch(fullUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to load media: ${response.status} ${response.statusText}`);
+    }
+
+    // Get file as blob
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    if (isPreview) {
+      // Open in new tab
+      const newWindow = window.open(blobUrl, '_blank');
+      if (!newWindow) {
+        alert('Please allow popups to view the file');
+      }
+    } else {
+      // Trigger download
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename || 'download';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      // Clean up blob URL after download
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
+    }
+  } catch (error) {
+    console.error('Error loading media:', error);
+    alert(`Failed to load media: ${error.message}`);
+  }
+};
+
+// Legacy function for loading images/audio (kept for backward compatibility)
+export const loadAuthenticatedMediaLegacy = async (mediaUrl, mediaId) => {
   // Check if we already have this media cached
   if (mediaCache.has(mediaId)) {
     console.log('MediaLoader: Using cached media for ID:', mediaId);

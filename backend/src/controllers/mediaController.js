@@ -68,6 +68,8 @@ export const getFile = async (req, res) => {
       return res.status(404).json({ message: 'File not found' });
     }
     
+    console.log('MediaController: File found:', file.filename, 'Type:', file.contentType);
+    
     // Check conversation membership if metadata present
     if (file.metadata && file.metadata.conversationId) {
       const convId = file.metadata.conversationId;
@@ -93,19 +95,28 @@ export const getFile = async (req, res) => {
       console.log('MediaController: No conversation metadata found, allowing access');
     }
     
-    // Stream the file
-    console.log('MediaController: Returning file:', file.filename);
+    // Set proper headers for PDF and other documents
     res.set('Content-Type', file.contentType || 'application/octet-stream');
+    res.set('Content-Disposition', `inline; filename="${file.filename}"`);
+    res.set('Content-Length', file.length);
+    
+    // Stream the file
+    console.log('MediaController: Streaming file:', file.filename, 'Size:', file.length);
     
     const downloadStream = bucket.openDownloadStream(new mongoose.Types.ObjectId(id));
-    downloadStream.pipe(res);
     
     downloadStream.on('error', (error) => {
-      console.error('Stream error:', error);
-      res.status(500).json({ message: 'Error streaming file' });
+      console.error('MediaController: Stream error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'Error streaming file' });
+      }
     });
+    
+    downloadStream.pipe(res);
   } catch (error) {
-    console.error('Get file error:', error);
-    res.status(500).json({ message: error.message });
+    console.error('MediaController: Get file error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ message: error.message });
+    }
   }
 };
