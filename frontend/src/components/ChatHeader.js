@@ -89,15 +89,6 @@ export default function ChatHeader({
           </svg>
         </button>
       )}
-
-      {/* Logout button */}
-      <button
-        style={{ marginLeft: '8px', padding: '4px 8px', fontSize: '0.75rem', borderRadius: '4px', background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', cursor: 'pointer' }}
-        onClick={user.onLogout}
-        title="Logout"
-      >
-        Logout
-      </button>
     </header>
   );
 }
