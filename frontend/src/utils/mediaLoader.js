@@ -3,6 +3,7 @@ import api, { getAuthenticatedApi } from '../services/api';
 
 const mediaCache = new Map();
 
+// For images - returns blob URL for <img> tags
 export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
   // Check if we already have this media cached
   if (mediaCache.has(mediaId)) {
@@ -71,6 +72,77 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
       console.error('MediaLoader: Media file not found');
     }
     
+    throw error;
+  }
+};
+
+// For PDFs and documents - downloads or opens in new tab
+export const loadAuthenticatedDocument = async (documentUrl, mimeType = 'application/pdf', isPreview = false, filename = 'document.pdf') => {
+  try {
+    console.log('Loading authenticated document:', documentUrl);
+    
+    // Get the backend API URL
+    const apiURL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+    
+    // Convert to full URL if needed
+    let fullUrl = documentUrl;
+    if (!documentUrl.startsWith('http')) {
+      fullUrl = `${apiURL}${documentUrl}`;
+    }
+    
+    console.log('Fetching from:', fullUrl);
+    
+    // Get authentication token
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token available');
+    }
+
+    // Fetch with authentication
+    const response = await fetch(fullUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': mimeType
+      },
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to load document: ${response.status} ${response.statusText}`);
+    }
+
+    // Get file as blob
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    if (isPreview) {
+      // Open in new tab
+      const newWindow = window.open(blobUrl, '_blank');
+      if (!newWindow) {
+        alert('Please allow popups to view the file');
+      }
+      
+      // Clean up after a delay
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 60000); // Revoke after 1 minute
+    } else {
+      // Trigger download
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      // Clean up blob URL after download
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+    }
+  } catch (error) {
+    console.error('Error loading document:', error);
     throw error;
   }
 };

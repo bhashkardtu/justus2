@@ -1,21 +1,26 @@
 import React from 'react';
+import { loadAuthenticatedDocument } from '../utils/mediaLoader';
 
 export default function DocumentMessage({ message }) {
   const filename = message.metadata?.filename || 'document.pdf';
   const fileUrl = message.content;
 
-  const handleDownload = () => {
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = filename;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async () => {
+    try {
+      await loadAuthenticatedDocument(fileUrl, 'application/pdf', false, filename);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Failed to download file');
+    }
   };
 
-  const handleView = () => {
-    window.open(fileUrl, '_blank');
+  const handleView = async () => {
+    try {
+      await loadAuthenticatedDocument(fileUrl, 'application/pdf', true);
+    } catch (error) {
+      console.error('View failed:', error);
+      alert('Failed to open file');
+    }
   };
 
   return (
