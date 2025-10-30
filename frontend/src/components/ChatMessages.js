@@ -6,21 +6,38 @@ import CallMessage from './CallMessage';
 import { fmtTime } from '../utils/format';
 
 export default function ChatMessages({ messages, user, otherUser, onEdit, onDelete, onReply, colors }) {
-  const renderReplyTo = (replyTo) => {
+  const renderReplyTo = (replyTo, allMessages) => {
     if (!replyTo) return null;
 
+    // Handle both populated (from backend) and id-only (temporary) replyTo
+    let replyMessage = replyTo;
+    
+    // If replyTo is just an ID string, find the message in the list
+    if (typeof replyTo === 'string') {
+      replyMessage = allMessages.find(m => m.id === replyTo || m._id === replyTo);
+      if (!replyMessage) return null;
+    }
+    
+    // If replyTo doesn't have content but has an id, find it
+    if (replyTo.id && !replyTo.content && !replyTo.type) {
+      replyMessage = allMessages.find(m => m.id === replyTo.id || m._id === replyTo.id);
+      if (!replyMessage) return null;
+    }
+
     const getReplyContent = () => {
-      switch (replyTo.type) {
+      switch (replyMessage.type) {
         case 'text':
-          return replyTo.content;
+          return replyMessage.content;
         case 'image':
           return '📷 Image';
         case 'audio':
           return '🎤 Voice message';
         case 'document':
-          return `📄 ${replyTo.metadata?.filename || 'Document'}`;
+          return `📄 ${replyMessage.metadata?.filename || 'Document'}`;
+        case 'call':
+          return '📞 Call';
         default:
-          return replyTo.content;
+          return replyMessage.content;
       }
     };
 
@@ -31,15 +48,21 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
         borderLeft: `3px solid ${colors.primary || '#3b82f6'}`,
         background: colors.replyBg || 'rgba(0,0,0,0.05)',
         borderRadius: '4px',
-        fontSize: '0.8rem'
-      }}>
+        fontSize: '0.8rem',
+        cursor: 'pointer'
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        // Optional: Scroll to the replied message
+      }}
+      >
         <div style={{ 
           fontWeight: 600, 
           color: colors.primary || '#3b82f6',
           marginBottom: '2px',
           fontSize: '0.75rem'
         }}>
-          {replyTo.senderId === user.id ? 'You' : otherUser?.name || 'User'}
+          {replyMessage.senderId === user.id ? 'You' : (otherUser?.displayName || otherUser?.username || 'User')}
         </div>
         <div style={{ 
           color: colors.replyText || 'rgba(0,0,0,0.6)',
@@ -88,7 +111,7 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
               }}
               title="Right-click to reply"
             >
-              {msg.replyTo && renderReplyTo(msg.replyTo)}
+              {msg.replyTo && renderReplyTo(msg.replyTo, messages)}
               {msg.type === 'text' && <span>{msg.content}</span>}
               {msg.type === 'image' && <ImageMessage message={msg} />}
               {msg.type === 'audio' && <AudioMessage message={msg} />}

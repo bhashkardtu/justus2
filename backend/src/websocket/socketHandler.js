@@ -67,6 +67,7 @@ export const configureSocketIO = (io) => {
           type: incoming.type,
           content: incoming.content,
           metadata: incoming.metadata || null,
+          replyTo: incoming.replyTo || null,
           timestamp: new Date(),
           delivered: true,
           deliveredAt: new Date()
@@ -102,6 +103,11 @@ export const configureSocketIO = (io) => {
         const message = new Message(messageData);
         const saved = await message.save();
         console.log('Message saved with ID:', saved._id);
+        
+        // Populate replyTo if exists
+        if (saved.replyTo) {
+          await saved.populate('replyTo', 'senderId type content metadata timestamp');
+        }
         
         // Convert to DTO with user information
         const messageDTO = await messageService.convertToDTO(saved);
