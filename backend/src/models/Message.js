@@ -26,6 +26,12 @@ const messageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: null
   },
+  // Reply to message feature
+  replyTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Message',
+    default: null
+  },
   timestamp: {
     type: Date,
     default: Date.now

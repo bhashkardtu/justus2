@@ -26,6 +26,7 @@ export default function ChatPage({ user, onLogout }){
   const [otherUser, setOtherUser] = useState(null);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [editingMessage, setEditingMessage] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
   const [typingUser, setTypingUser] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [showOtherUserModal, setShowOtherUserModal] = useState(false);
@@ -389,7 +390,14 @@ export default function ChatPage({ user, onLogout }){
         receiverId: targetUserId,
         conversationId,
         timestamp: new Date().toISOString(),
-        temporary: true // Mark as temporary
+        temporary: true, // Mark as temporary
+        replyTo: replyingTo ? {
+          id: replyingTo.id,
+          senderId: replyingTo.senderId,
+          type: replyingTo.type,
+          content: replyingTo.content,
+          metadata: replyingTo.metadata
+        } : null
       };
       
       // Add message immediately to UI (optimistic update)
@@ -407,7 +415,8 @@ export default function ChatPage({ user, onLogout }){
         type: 'text', 
         content: text.trim(), 
         conversationId,
-        senderId: currentUserId
+        senderId: currentUserId,
+        replyTo: replyingTo?.id || null
       });
       
       // Set up automatic cleanup of temporary message after 10 seconds
@@ -460,9 +469,10 @@ export default function ChatPage({ user, onLogout }){
     }
     
     setText('');
+    setReplyingTo(null); // Clear reply after sending
     sendingRef.current = false;
     setSending(false);
-  }
+  };
 
   // uploadImage now provided by hook
 
@@ -476,6 +486,15 @@ export default function ChatPage({ user, onLogout }){
   const onEdit = (m) => { 
     setEditingMessage(m); 
     setText(m.content); 
+  }
+
+  const handleReply = (message) => {
+    setReplyingTo(message);
+    // Focus on input (optional)
+  }
+
+  const cancelReply = () => {
+    setReplyingTo(null);
   }
   
   const onDelete = async (m) => { 
@@ -627,7 +646,7 @@ export default function ChatPage({ user, onLogout }){
           >
             {/* Messages container with padding for mobile/desktop */}
             <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <ChatMessages messages={messages} user={user} otherUser={otherUser} onEdit={onEdit} onDelete={onDelete} colors={colors} />
+              <ChatMessages messages={messages} user={user} otherUser={otherUser} onEdit={onEdit} onDelete={onDelete} onReply={handleReply} colors={colors} />
               <TypingIndicator typingUser={typingUser} colors={colors} />
             </div>
             
@@ -654,9 +673,12 @@ export default function ChatPage({ user, onLogout }){
             sending={sending}
             editingMessage={editingMessage}
             cancelEdit={cancelEdit}
+            replyingTo={replyingTo}
+            cancelReply={cancelReply}
             send={send}
             connectionStatus={connectionStatus}
             colors={colors}
+            currentUserId={user.id}
           />
         </div>
 

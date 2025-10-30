@@ -1,4 +1,5 @@
 import React from 'react';
+import ReplyPreview from './ReplyPreview';
 
 export default function ComposeBar({
   text,
@@ -13,12 +14,29 @@ export default function ComposeBar({
   sending,
   editingMessage,
   cancelEdit,
+  replyingTo,
+  cancelReply,
   send,
   connectionStatus,
-  colors
+  colors,
+  currentUserId
 }) {
   return (
-    <form onSubmit={send} style={{ background: colors.inputBg, borderTop: `1px solid ${colors.inputBorder}`, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+    <form onSubmit={send} style={{ background: colors.inputBg, borderTop: `1px solid ${colors.inputBorder}`, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      {/* Reply Preview */}
+      {replyingTo && (
+        <ReplyPreview 
+          replyToMessage={{
+            ...replyingTo,
+            currentUserId,
+            senderName: replyingTo.senderId === currentUserId ? 'You' : (otherUser?.displayName || otherUser?.username || 'User')
+          }}
+          onCancel={cancelReply}
+          colors={colors}
+        />
+      )}
+      
+      {/* Edit Preview */}
       {editingMessage && (
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: '100%', marginBottom: '8px', background: '#fef3c7', color: '#92400e', fontSize: '0.75rem', padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10, borderRadius: '8px 8px 0 0' }}>
           <span>Editing message</span>
@@ -26,6 +44,8 @@ export default function ComposeBar({
         </div>
       )}
       
+      {/* Input Bar */}
+      <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
       <button
         type="button"
         style={{ padding: '8px', borderRadius: '50%', background: 'none', border: 'none', color: colors.inputText, cursor: 'pointer', transition: 'background 0.2s' }}
@@ -92,6 +112,7 @@ export default function ComposeBar({
           </svg>
         )}
       </button>
+      </div>
 
       {connectionStatus !== 'connected' && (
         <div style={{ position: 'absolute', left: 0, right: 0, top: '100%', marginTop: '4px', padding: '8px 12px', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: '0 0 8px 8px', fontSize: '0.75rem', color: '#92400e', display: 'flex', alignItems: 'center', gap: '8px' }}>

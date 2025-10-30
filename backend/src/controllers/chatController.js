@@ -28,7 +28,9 @@ export const getMessages = async (req, res) => {
       const messages = await Message.find({
         conversationId,
         deleted: false
-      }).sort({ timestamp: 1 });
+      })
+      .populate('replyTo', 'senderId type content metadata timestamp')
+      .sort({ timestamp: 1 });
       
       console.log(`Found ${messages.length} non-deleted messages in conversation`);
       messages.forEach(msg => {
