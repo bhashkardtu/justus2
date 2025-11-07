@@ -13,27 +13,52 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
 
   // WebRTC configuration with better STUN/TURN servers for production
   const rtcConfig = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' }
-    ],
+     iceServers: [
+      {
+        urls: process.env.REACT_APP_STUN_URL,
+      },
+      {
+        urls: process.env.REACT_APP_TURN_URL,
+        username: process.env.REACT_APP_TURN_USERNAME,
+        credential: process.env.REACT_APP_TURN_CREDENTIAL,
+      },
+      {
+        urls: process.env.REACT_APP_TURN_URL_TCP ,
+        username: process.env.REACT_APP_TURN_USERNAME,
+        credential: process.env.REACT_APP_TURN_CREDENTIAL,
+      },
+      {
+        urls: process.env.REACT_APP_TURN_URL_443,
+        username: process.env.REACT_APP_TURN_USERNAME,
+        credential: process.env.REACT_APP_TURN_CREDENTIAL,
+      },
+      {
+        urls: process.env.REACT_APP_TURNS_URL,
+        username: process.env.REACT_APP_TURN_USERNAME,
+        credential: process.env.REACT_APP_TURN_CREDENTIAL,
+      },
+  ],
     iceCandidatePoolSize: 10
   };
 
+
   // Start call timer
   const startCallTimer = () => {
+    console.log('[voice] startCallTimer');
     setCallDuration(0);
     callStartTimeRef.current = Date.now();
     callTimerRef.current = setInterval(() => {
-      setCallDuration(prev => prev + 1);
+      setCallDuration(prev => {
+        const next = prev + 1;
+        if (next % 5 === 0) console.log('[voice] callDuration', next);
+        return next;
+      });
     }, 1000);
   };
 
   // Stop call timer
   const stopCallTimer = () => {
+    console.log('[voice] stopCallTimer');
     if (callTimerRef.current) {
       clearInterval(callTimerRef.current);
       callTimerRef.current = null;
@@ -42,31 +67,58 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
 
   // Initialize peer connection
   const createPeerConnection = () => {
+    console.log('[voice] createPeerConnection with rtcConfig:', rtcConfig);
     const pc = new RTCPeerConnection(rtcConfig);
     
     pc.onicecandidate = (event) => {
+      console.log('[voice] onicecandidate event:', event);
+      if (event.candidate) {
+        console.log('[voice] local ICE candidate:', event.candidate.candidate);
+        if (event.candidate.candidate && event.candidate.candidate.includes(' typ relay')) {
+          console.log('[voice] RELAY candidate generated locally');
+        }
+      }
       if (event.candidate && socket) {
         socket.emit('call.ice-candidate', {
           receiverId: otherUserId,
           candidate: event.candidate
         });
+        console.log('[voice] emitted call.ice-candidate to', otherUserId);
       }
     };
     
+    pc.onicecandidateerror = (err) => {
+      console.error('[voice] onicecandidateerror', err);
+    };
+
     pc.ontrack = (event) => {
+      console.log('[voice] ontrack event, streams present:', !!(event.streams && event.streams[0]));
       if (event.streams && event.streams[0]) {
         remoteStreamRef.current = event.streams[0];
+        console.log('[voice] remoteStreamRef set, audio tracks:', remoteStreamRef.current.getAudioTracks().length);
       }
     };
     
     pc.onconnectionstatechange = () => {
-      console.log('Connection state:', pc.connectionState);
+      console.log('[voice] connection state:', pc.connectionState);
       if (pc.connectionState === 'connected') {
         setCallState('connected');
         startCallTimer();
+        console.log('[voice] Peer connection is connected');
       } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+        console.warn('[voice] Peer connection disconnected/failed:', pc.connectionState);
         endCall();
+      } else {
+        console.log('[voice] connectionState changed to', pc.connectionState);
       }
+    };
+
+    pc.onicegatheringstatechange = () => {
+      console.log('[voice] iceGatheringState:', pc.iceGatheringState);
+    };
+
+    pc.onsignalingstatechange = () => {
+      console.log('[voice] signalingState:', pc.signalingState);
     };
     
     peerConnectionRef.current = pc;
@@ -83,7 +135,7 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
     try {
       setCallState('calling');
       
-      console.log('Requesting microphone access...');
+      console.log('[voice] Requesting microphone access...');
       
       // Check if HTTPS (required for getUserMedia in production)
       if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
@@ -102,7 +154,7 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
         video: false 
       });
       
-      console.log('Microphone access granted');
+      console.log('[voice] Microphone access granted, tracks:', stream.getTracks().map(t => t.kind));
       localStreamRef.current = stream;
       
       // Create peer connection
@@ -111,20 +163,24 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
       // Add local stream tracks to peer connection
       stream.getTracks().forEach(track => {
         pc.addTrack(track, stream);
+        console.log('[voice] added local audio track', track);
       });
       
       // Create offer
       const offer = await pc.createOffer();
+      console.log('[voice] created offer');
       await pc.setLocalDescription(offer);
+      console.log('[voice] setLocalDescription done');
       
       // Send offer to the other user via socket
       socket.emit('call.offer', {
         receiverId: otherUserId,
         offer: offer
       });
+      console.log('[voice] emitted call.offer to', otherUserId);
       
     } catch (error) {
-      console.error('Error starting call:', error);
+      console.error('[voice] Error starting call:', error);
       
       let errorMessage = 'Failed to start call. ';
       if (error.name === 'NotAllowedError') {
@@ -153,7 +209,7 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
     try {
       setCallState('connected');
       
-      console.log('Answering call, requesting microphone...');
+      console.log('[voice] Answering call, requesting microphone...');
       
       // Check if HTTPS
       if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
@@ -172,7 +228,7 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
         video: false 
       });
       
-      console.log('Microphone access granted for answer');
+      console.log('[voice] Microphone access granted for answer');
       localStreamRef.current = stream;
       
       // Create peer connection
@@ -181,25 +237,40 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
       // Add local stream tracks
       stream.getTracks().forEach(track => {
         pc.addTrack(track, stream);
+        console.log('[voice] added local audio track for answer');
       });
       
       // Set remote description from the offer
       await pc.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
+      console.log('[voice] setRemoteDescription(offer) done');
       
+      // Flush queued ICE candidates after peer connection is ready
+      if (pendingCandidates.current.length > 0) {
+        console.log(`[voice] Adding ${pendingCandidates.current.length} queued ICE candidates`);
+        for (const candidate of pendingCandidates.current) {
+          await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+        pendingCandidates.current = [];
+      }
+
+
       // Create answer
       const answer = await pc.createAnswer();
+      console.log('[voice] created answer');
       await pc.setLocalDescription(answer);
+      console.log('[voice] setLocalDescription(answer) done');
       
       // Send answer back via socket
       socket.emit('call.answer', {
         receiverId: incomingCall.callerId,
         answer: answer
       });
+      console.log('[voice] emitted call.answer to', incomingCall.callerId);
       
       setIncomingCall(null);
       
     } catch (error) {
-      console.error('Error answering call:', error);
+      console.error('[voice] Error answering call:', error);
       
       let errorMessage = 'Failed to answer call. ';
       if (error.name === 'NotAllowedError') {
@@ -223,6 +294,7 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
       socket.emit('call.reject', {
         receiverId: incomingCall.callerId
       });
+      console.log('[voice] emitted reject to', incomingCall.callerId);
       setIncomingCall(null);
     }
     setCallState('idle');
@@ -230,18 +302,27 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
 
   // End call
   const endCall = () => {
+    console.log('[voice] endCall called, callState=', callState);
     const hadActiveCall = callState === 'connected';
     const finalDuration = callDuration;
     
     // Stop all tracks
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log('[voice] stopped local track', track.kind);
+      });
       localStreamRef.current = null;
     }
     
     // Close peer connection
     if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
+      try {
+        peerConnectionRef.current.close();
+        console.log('[voice] peerConnection closed');
+      } catch (e) {
+        console.error('[voice] error closing peerConnection', e);
+      }
       peerConnectionRef.current = null;
     }
     
@@ -253,11 +334,13 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
       socket.emit('call.end', {
         receiverId: otherUserId
       });
+      console.log('[voice] emitted call.end to', otherUserId);
     }
     
     // Create call log if call was connected
     if (hadActiveCall && finalDuration > 0 && onCallEnd) {
       onCallEnd(finalDuration);
+      console.log('[voice] onCallEnd fired', finalDuration);
     }
     
     setCallState('idle');
@@ -266,10 +349,13 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
   };
 
   // Handle incoming call signals
+  const pendingCandidates = useRef([]);
+
   useEffect(() => {
     if (!socket) return;
     
     const handleCallOffer = async (data) => {
+      console.log('[voice] received call.offer from', data.senderId);
       setIncomingCall({
         callerId: data.senderId,
         callerName: data.callerName || 'User',
@@ -279,24 +365,48 @@ export default function useVoiceCall({ socket, userId, otherUserId, otherUser, o
     };
     
     const handleCallAnswer = async (data) => {
-      if (peerConnectionRef.current) {
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+      console.log('[voice] received call.answer from', data.senderId);
+      try {
+        if (peerConnectionRef.current) {
+          await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+          console.log('[voice] setRemoteDescription(answer) success');
+        } else {
+          console.warn('[voice] no peerConnection to set remote answer on');
+        }
+      } catch (err) {
+        console.error('[voice] error setting remote answer', err);
       }
     };
     
     const handleIceCandidate = async (data) => {
-      if (peerConnectionRef.current && data.candidate) {
-        await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+  console.log('[voice] received remote ICE candidate from socket', data);
+  try {
+    if (peerConnectionRef.current && data.candidate) {
+      if (data.candidate.candidate && data.candidate.candidate.includes(' typ relay')) {
+        console.log('[voice] REMOTE relay candidate received');
       }
-    };
+      await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+      console.log('[voice] addIceCandidate success');
+    } else {
+      // No peer connection yet — queue it for later
+      console.warn('[voice] No peerConnection yet, queueing candidate');
+      pendingCandidates.current.push(data.candidate);
+    }
+  } catch (err) {
+    console.error('[voice] addIceCandidate error', err);
+  }
+};
+
     
     const handleCallReject = () => {
+      console.log('[voice] received call.reject');
       setCallState('idle');
       endCall();
       alert('Call was rejected');
     };
     
     const handleCallEnd = () => {
+      console.log('[voice] received call.end');
       endCall();
     };
     

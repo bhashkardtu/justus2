@@ -11,16 +11,21 @@ import chatRoutes from './routes/chatRoutes.js';
 import mediaRoutes from './routes/mediaRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import path from 'path';
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // CORS configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
   'http://localhost:3000',
-  'http://localhost:3001'
+  'http://localhost:3001',
 ];
 
 app.use(cors({
