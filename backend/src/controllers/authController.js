@@ -77,7 +77,7 @@ export const register = async (req, res) => {
       receiverId: userId,
       conversationId: conversation._id,
       type: 'text',
-      content: `Welcome to JustUs! \n\nHere is your unique invite link to connect with others:\n${inviteLink}\n\nShare this link with your friends to start chatting!`,
+      content: `Welcome to JustUs!\n\nHere is your unique invite link to connect with others:\n${inviteLink}\n\nHow to connect with someone:\n1) Ask your friend to share their 8-character invite code or link.\n2) Click the Contacts button (person-with-plus icon) in the chat header.\n3) Enter their invite code in the Add Contact box and press Add.\n\nTip: Your own invite link is above — share it to let others connect with you.`,
       timestamp: new Date()
     });
     await systemMessage.save();

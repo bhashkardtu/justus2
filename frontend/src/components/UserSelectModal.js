@@ -38,14 +38,25 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
         </div>
 
         {/* Add Contact Form */}
-        <form onSubmit={handleConnect} className="mb-6">
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
+          <div className="flex items-start gap-2 mb-3">
+            <svg className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="text-sm text-indigo-800">
+              <p className="font-semibold mb-1">Add new contact:</p>
+              <p className="text-indigo-700">Enter the invite code shared by your friend. Check your chat with <strong>System</strong> for your own invite link!</p>
+            </div>
+          </div>
+          <form onSubmit={handleConnect}>
             <div className="flex gap-2">
                 <input 
                     type="text" 
-                    placeholder="Enter Invite Code" 
-                    className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                    placeholder="Enter 8-character invite code" 
+                    className="flex-1 p-2 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white"
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value)}
+                    maxLength={8}
                 />
                 <button 
                     type="submit" 
@@ -55,7 +66,8 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
                     {loading ? '...' : 'Add'}
                 </button>
             </div>
-        </form>
+          </form>
+        </div>
 
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {availableUsers.filter(u => u.id !== currentUserId).length === 0 && (
