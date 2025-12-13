@@ -18,6 +18,9 @@ export default function ChatHeader({
   otherUserOnline,
   onLogout
 }) {
+  // Highlight the Contacts button for first-time users
+  const [showContactsHint, setShowContactsHint] = React.useState(() => !localStorage.getItem('contacts_hint_dismissed'));
+
   return (
     <header style={{ background: colors.header, color: colors.headerText, padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
       <div style={{ position: 'relative' }}>
@@ -103,30 +106,57 @@ export default function ChatHeader({
       )}
 
       {/* Add Contact / Select Contact Button */}
-      <button
-        onClick={() => setShowOtherUserModal(true)}
-        style={{
-          padding: '8px',
-          borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: 'none',
-          color: colors.headerText,
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginLeft: '8px'
-        }}
-        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-        title="Contacts"
-      >
-        {/* User plus icon */}
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '20px', height: '20px' }}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a2.25 2.25 0 01-.732 1.651c-1.047.942-2.772.971-3.84.06A7.501 7.501 0 014.5 14.25m10.5 4.878V21m0 0h2.25M15 21h-2.25M6.75 7.5a3.75 3.75 0 107.5 0 3.75 3.75 0 00-7.5 0z" />
-        </svg>
-      </button>
+      <div style={{ position: 'relative' }}>
+        {showContactsHint && (
+          <div style={{
+            position: 'absolute',
+            bottom: '120%',
+            right: 0,
+            background: theme === 'dark' ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.12)',
+            color: theme === 'dark' ? '#e5e7eb' : '#1f2937',
+            border: '1px solid rgba(99,102,241,0.35)',
+            padding: '6px 10px',
+            borderRadius: '10px',
+            fontSize: '12px',
+            whiteSpace: 'nowrap',
+            boxShadow: '0 6px 20px rgba(99,102,241,0.25)'
+          }}>
+            Add contacts here
+          </div>
+        )}
+        <button
+          onClick={() => {
+            setShowOtherUserModal(true);
+            if (showContactsHint) {
+              localStorage.setItem('contacts_hint_dismissed', '1');
+              setShowContactsHint(false);
+            }
+          }}
+          style={{
+            padding: '8px',
+            borderRadius: '50%',
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: 'none',
+            color: colors.headerText,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginLeft: '8px',
+            boxShadow: showContactsHint ? '0 0 0 6px rgba(99,102,241,0.15), 0 0 16px rgba(99,102,241,0.35)' : 'none',
+            transform: showContactsHint ? 'scale(1.03)' : 'none'
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+          title="Contacts"
+        >
+          {/* User plus icon */}
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '20px', height: '20px' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a2.25 2.25 0 01-.732 1.651c-1.047.942-2.772.971-3.84.06A7.501 7.501 0 014.5 14.25m10.5 4.878V21m0 0h2.25M15 21h-2.25M6.75 7.5a3.75 3.75 0 107.5 0 3.75 3.75 0 00-7.5 0z" />
+          </svg>
+        </button>
+      </div>
 
       {/* Logout Button */}
       <button
