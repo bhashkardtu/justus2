@@ -22,7 +22,7 @@ export default function ChatHeader({
   const [showContactsHint, setShowContactsHint] = React.useState(() => !localStorage.getItem('contacts_hint_dismissed'));
 
   return (
-    <header style={{ background: colors.header, color: colors.headerText, padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+    <header style={{ background: colors.header, color: colors.headerText, padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
       <div style={{ position: 'relative' }}>
         <img
           src={otherUser?.avatarUrl || `https://ui-avatars.com/api/?name=${otherUser?.displayName || otherUser?.username || 'User'}`}
@@ -33,9 +33,39 @@ export default function ChatHeader({
           <div style={{ position: 'absolute', bottom: '0', right: '0', width: '12px', height: '12px', background: '#4ade80', border: '2px solid ' + colors.header, borderRadius: '50%' }}></div>
         )}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
         <div style={{ fontWeight: 600, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span>{otherUser?.displayName || otherUser?.username || 'User'}</span>
+          {/* Contacts pill next to title */}
+          <button
+            onClick={() => {
+              setShowOtherUserModal(true);
+              if (showContactsHint) {
+                localStorage.setItem('contacts_hint_dismissed', '1');
+                setShowContactsHint(false);
+              }
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 10px',
+              borderRadius: '9999px',
+              background: theme === 'dark' ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.12)',
+              color: theme === 'dark' ? '#e5e7eb' : '#1f2937',
+              border: '1px solid rgba(99,102,241,0.35)',
+              fontSize: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: showContactsHint ? '0 0 0 6px rgba(99,102,241,0.15), 0 0 16px rgba(99,102,241,0.35)' : 'none'
+            }}
+            title="Contacts"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '16px', height: '16px' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a2.25 2.25 0 01-.732 1.651c-1.047.942-2.772.971-3.84.06A7.501 7.501 0 014.5 14.25m10.5 4.878V21m0 0h2.25M15 21h-2.25M6.75 7.5a3.75 3.75 0 107.5 0 3.75 3.75 0 00-7.5 0z" />
+            </svg>
+            <span className="contacts-label" style={{ display: 'inline' }}>Contacts</span>
+          </button>
         </div>
         <div style={{ fontSize: '0.75rem', color: theme === 'dark' ? '#8696a0' : '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minHeight: '18px' }}>
           {typingUser ? (
@@ -105,58 +135,7 @@ export default function ChatHeader({
         </button>
       )}
 
-      {/* Add Contact / Select Contact Button */}
-      <div style={{ position: 'relative' }}>
-        {showContactsHint && (
-          <div style={{
-            position: 'absolute',
-            bottom: '120%',
-            right: 0,
-            background: theme === 'dark' ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.12)',
-            color: theme === 'dark' ? '#e5e7eb' : '#1f2937',
-            border: '1px solid rgba(99,102,241,0.35)',
-            padding: '6px 10px',
-            borderRadius: '10px',
-            fontSize: '12px',
-            whiteSpace: 'nowrap',
-            boxShadow: '0 6px 20px rgba(99,102,241,0.25)'
-          }}>
-            Add contacts here
-          </div>
-        )}
-        <button
-          onClick={() => {
-            setShowOtherUserModal(true);
-            if (showContactsHint) {
-              localStorage.setItem('contacts_hint_dismissed', '1');
-              setShowContactsHint(false);
-            }
-          }}
-          style={{
-            padding: '8px',
-            borderRadius: '50%',
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: 'none',
-            color: colors.headerText,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginLeft: '8px',
-            boxShadow: showContactsHint ? '0 0 0 6px rgba(99,102,241,0.15), 0 0 16px rgba(99,102,241,0.35)' : 'none',
-            transform: showContactsHint ? 'scale(1.03)' : 'none'
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-          title="Contacts"
-        >
-          {/* User plus icon */}
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '20px', height: '20px' }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a2.25 2.25 0 01-.732 1.651c-1.047.942-2.772.971-3.84.06A7.501 7.501 0 014.5 14.25m10.5 4.878V21m0 0h2.25M15 21h-2.25M6.75 7.5a3.75 3.75 0 107.5 0 3.75 3.75 0 00-7.5 0z" />
-          </svg>
-        </button>
-      </div>
+      {/* Removed duplicate round Contacts icon; replaced with title-adjacent pill */}
 
       {/* Logout Button */}
       <button
