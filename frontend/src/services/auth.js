@@ -12,7 +12,9 @@ export const login = async (creds) => {
       const message = error.response.data?.message || error.response.data || 'Login failed';
       throw { 
         ...error,
-        message: typeof message === 'string' ? message : 'Login failed'
+        message: typeof message === 'string' ? message : 'Login failed',
+        requiresVerification: error.response.data?.requiresVerification,
+        email: error.response.data?.email
       };
     } else if (error.request) {
       // Request was made but no response received
@@ -45,6 +47,34 @@ export const register = async (creds) => {
       // Something else went wrong
       throw new Error('An unexpected error occurred');
     }
+  }
+};
+
+export const verifyEmail = async (data) => {
+  try {
+    const response = await api.post('/api/auth/verify-email', data);
+    return response;
+  } catch (error) {
+    console.error('Verification error:', error.response || error);
+    if (error.response) {
+      const message = error.response.data?.message || 'Verification failed';
+      throw { ...error, message };
+    }
+    throw new Error('Network error');
+  }
+};
+
+export const resendVerification = async (email) => {
+  try {
+    const response = await api.post('/api/auth/resend-verification', { email });
+    return response;
+  } catch (error) {
+    console.error('Resend error:', error.response || error);
+    if (error.response) {
+      const message = error.response.data?.message || 'Failed to resend code';
+      throw { ...error, message };
+    }
+    throw new Error('Network error');
   }
 };
 

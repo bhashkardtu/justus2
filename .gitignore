@@ -7,6 +7,7 @@
 .env.test
 .env.production
 .env.*.local
+*.env.example
 *.env
 
 # API Keys and Secrets
@@ -104,6 +105,13 @@ $RECYCLE.BIN/
 
 # Linux
 *~
+
+# =====================================
+# Markdown
+# =====================================
+# Ignore all markdown except README variants
+*.md
+!*README*.md
 
 # =====================================
 # MongoDB & Database

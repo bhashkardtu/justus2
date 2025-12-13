@@ -50,6 +50,13 @@ export const configureSocketIO = (io) => {
     // Join user-specific room
     socket.join(`user:${socket.userId}`);
     
+    // Broadcast user online status to all connected users
+    socket.broadcast.emit('user:status', {
+      userId: socket.userId,
+      username: socket.username,
+      status: 'online'
+    });
+    
     // Handle chat.send
     socket.on('chat.send', async (incoming) => {
       try {
@@ -167,6 +174,7 @@ export const configureSocketIO = (io) => {
     socket.on('chat.typing', (payload) => {
       try {
         const userId = socket.userId;
+        const username = socket.username;
         const { receiverId } = payload;
         
         if (!receiverId) {
@@ -174,7 +182,14 @@ export const configureSocketIO = (io) => {
           return;
         }
         
-        io.to(`user:${receiverId}`).emit('typing', { user: userId });
+        // Emit typing event with sender info
+        io.to(`user:${receiverId}`).emit('typing', { 
+          senderId: userId,
+          username: username,
+          type: 'typing'
+        });
+        
+        console.log(`Typing event: ${username} (${userId}) -> ${receiverId}`);
       } catch (error) {
         console.error('Error handling chat.typing:', error);
       }
@@ -339,6 +354,13 @@ export const configureSocketIO = (io) => {
     
     socket.on('disconnect', () => {
       console.log(`User disconnected: ${socket.userId}`);
+      
+      // Broadcast user offline status to all connected users
+      socket.broadcast.emit('user:status', {
+        userId: socket.userId,
+        username: socket.username,
+        status: 'offline'
+      });
     });
   });
 };

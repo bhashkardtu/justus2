@@ -30,6 +30,7 @@ export default function ChatPage({ user, onLogout }){
   const [typingUser, setTypingUser] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [showOtherUserModal, setShowOtherUserModal] = useState(false);
+  const [otherUserOnline, setOtherUserOnline] = useState(false);
   // Theme (light / dark) - sync from localStorage
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const [loading, setLoading] = useState(true);
@@ -99,7 +100,12 @@ export default function ChatPage({ user, onLogout }){
     isReconnecting,
     setIsReconnecting,
     connectedRef,
-    typingTimeoutRef
+    typingTimeoutRef,
+    onUserStatusChange: (statusData) => {
+      if (statusData.userId === otherUserId) {
+        setOtherUserOnline(statusData.status === 'online');
+      }
+    }
   });
 
   // Handle call end - create call log message
@@ -636,6 +642,8 @@ export default function ChatPage({ user, onLogout }){
           onStartVideoCall={startVideoCall}
           voiceCallState={voiceCallState}
           videoCallState={videoCallState}
+          otherUserOnline={otherUserOnline}
+          onLogout={onLogout}
         />
 
           {/* Modern Messages Area */}

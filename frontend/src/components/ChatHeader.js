@@ -14,23 +14,35 @@ export default function ChatHeader({
   onStartVoiceCall,
   onStartVideoCall,
   voiceCallState,
-  videoCallState
+  videoCallState,
+  otherUserOnline,
+  onLogout
 }) {
   return (
     <header style={{ background: colors.header, color: colors.headerText, padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-      <img
-        src={otherUser?.avatarUrl || `https://ui-avatars.com/api/?name=${otherUser?.displayName || otherUser?.username || 'User'}`}
-        alt="Avatar"
-        style={{ border: '2px solid #25d366', borderRadius: '50%', width: '40px', height: '40px', objectFit: 'cover' }}
-      />
+      <div style={{ position: 'relative' }}>
+        <img
+          src={otherUser?.avatarUrl || `https://ui-avatars.com/api/?name=${otherUser?.displayName || otherUser?.username || 'User'}`}
+          alt="Avatar"
+          style={{ border: `2px solid ${otherUserOnline ? '#25d366' : '#6b7280'}`, borderRadius: '50%', width: '40px', height: '40px', objectFit: 'cover' }}
+        />
+        {otherUserOnline && (
+          <div style={{ position: 'absolute', bottom: '0', right: '0', width: '12px', height: '12px', background: '#4ade80', border: '2px solid ' + colors.header, borderRadius: '50%' }}></div>
+        )}
+      </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span>{otherUser?.displayName || otherUser?.username || 'User'}</span>
-          {connectionStatus === 'connected' && <span style={{ marginLeft: '8px', color: '#4ade80', fontSize: '0.75rem', fontWeight: 'bold' }}>● online</span>}
-          {isReconnecting && <span style={{ marginLeft: '8px', color: '#eab308', fontSize: '0.75rem', fontWeight: 'bold' }}>reconnecting...</span>}
         </div>
-        <div style={{ fontSize: '0.75rem', color: theme === 'dark' ? '#8696a0' : '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {typingUser ? <span style={{ color: '#86efac', fontWeight: 500 }}>{typingUser} is typing...</span> : null}
+        <div style={{ fontSize: '0.75rem', color: theme === 'dark' ? '#8696a0' : '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minHeight: '18px' }}>
+          {typingUser ? (
+            <span style={{ color: '#4ade80', fontWeight: 600 }}>typing...</span>
+          ) : otherUserOnline ? (
+            <span style={{ color: '#4ade80' }}>online</span>
+          ) : (
+            <span>offline</span>
+          )}
+          {isReconnecting && <span style={{ marginLeft: '8px', color: '#eab308' }}>• reconnecting...</span>}
         </div>
       </div>
       
@@ -89,6 +101,57 @@ export default function ChatHeader({
           </svg>
         </button>
       )}
+
+      {/* Add Contact / Select Contact Button */}
+      <button
+        onClick={() => setShowOtherUserModal(true)}
+        style={{
+          padding: '8px',
+          borderRadius: '50%',
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: 'none',
+          color: colors.headerText,
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginLeft: '8px'
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+        title="Contacts"
+      >
+        {/* User plus icon */}
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '20px', height: '20px' }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a2.25 2.25 0 01-.732 1.651c-1.047.942-2.772.971-3.84.06A7.501 7.501 0 014.5 14.25m10.5 4.878V21m0 0h2.25M15 21h-2.25M6.75 7.5a3.75 3.75 0 107.5 0 3.75 3.75 0 00-7.5 0z" />
+        </svg>
+      </button>
+
+      {/* Logout Button */}
+      <button
+        onClick={onLogout}
+        style={{
+          padding: '8px',
+          borderRadius: '50%',
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: 'none',
+          color: colors.headerText,
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginLeft: '8px'
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+        title="Logout"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '20px', height: '20px' }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+        </svg>
+      </button>
     </header>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { getWebRTCConfig } from '../services/config';
 
 export default function useVideoCall({ socket, userId, otherUserId, otherUser, onCallEnd }) {
   const [callState, setCallState] = useState('idle'); // idle, calling, ringing, connected, ended
@@ -12,36 +13,17 @@ export default function useVideoCall({ socket, userId, otherUserId, otherUser, o
   const peerConnectionRef = useRef(null);
   const callTimerRef = useRef(null);
   const callStartTimeRef = useRef(null);
+  const rtcConfigRef = useRef(null);
 
-  // WebRTC configuration with better STUN servers for production
-  const rtcConfig = {
-      iceServers: [
-      {
-        urls: process.env.REACT_APP_STUN_URL,
-      },
-      {
-        urls: process.env.REACT_APP_TURN_URL,
-        username: process.env.REACT_APP_TURN_USERNAME,
-        credential: process.env.REACT_APP_TURN_CREDENTIAL,
-      },
-      {
-        urls: process.env.REACT_APP_TURN_URL_TCP ,
-        username: process.env.REACT_APP_TURN_USERNAME,
-        credential: process.env.REACT_APP_TURN_CREDENTIAL,
-      },
-      {
-        urls: process.env.REACT_APP_TURN_URL_443 ,
-        username: process.env.REACT_APP_TURN_USERNAME,
-        credential: process.env.REACT_APP_TURN_CREDENTIAL,
-      },
-      {
-        urls: process.env.REACT_APP_TURNS_URL,
-        username: process.env.REACT_APP_TURN_USERNAME,
-        credential: process.env.REACT_APP_TURN_CREDENTIAL,
-      },
-  ],
-    iceCandidatePoolSize: 10
-  };
+  // Fetch WebRTC config from backend on mount
+  useEffect(() => {
+    const fetchConfig = async () => {
+      const config = await getWebRTCConfig();
+      rtcConfigRef.current = config;
+      console.log('[video] WebRTC config loaded from backend');
+    };
+    fetchConfig();
+  }, []);
 
   // Start call timer
   const startCallTimer = () => {
@@ -93,8 +75,14 @@ export default function useVideoCall({ socket, userId, otherUserId, otherUser, o
 
   // Initialize peer connection
   const createPeerConnection = () => {
-    console.log('[video] createPeerConnection with rtcConfig:', rtcConfig);
-    const pc = new RTCPeerConnection(rtcConfig);
+    const config = rtcConfigRef.current;
+    if (!config) {
+      console.error('[video] WebRTC config not loaded yet');
+      return null;
+    }
+    
+    console.log('[video] createPeerConnection with config from backend');
+    const pc = new RTCPeerConnection(config);
     
     pc.onicecandidate = (event) => {
       console.log('[video] onicecandidate event:', event);

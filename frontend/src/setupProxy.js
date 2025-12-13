@@ -1,5 +1,7 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 module.exports = function(app) {
-  app.use(createProxyMiddleware('/api', { target: 'http://localhost:8080', changeOrigin: true }));
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  console.log('Setting up proxy to:', apiUrl);
+  app.use(createProxyMiddleware('/api', { target: apiUrl, changeOrigin: true }));
 };

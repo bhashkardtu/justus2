@@ -12,7 +12,8 @@ export default function useChatSocket({
   isReconnecting,
   setIsReconnecting,
   connectedRef,
-  typingTimeoutRef
+  typingTimeoutRef,
+  onUserStatusChange
 }) {
   const healthIntervalRef = useRef(null);
 
@@ -88,6 +89,11 @@ export default function useChatSocket({
               },
               onEdited: (editedMessage) => {
                 setMessages(prev => prev.map(msg => msg.id === editedMessage.id ? { ...msg, content: editedMessage.content } : msg));
+              },
+              onUserStatus: (statusData) => {
+                if (onUserStatusChange) {
+                  onUserStatusChange(statusData);
+                }
               },
               onConnectionLost: () => {
                 connectedRef.current = false;

@@ -2,8 +2,10 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
+import ErrorBoundary from './components/ErrorBoundary';
+import './utils/logger'; // Initialize logger to disable console in production
 
-// Apply saved theme early so there's no flash
+// Apply saved theme early to prevent flash
 const savedTheme = localStorage.getItem('theme') || 'light';
 if (savedTheme === 'dark') {
 	document.documentElement.classList.add('dark-theme');
@@ -11,4 +13,22 @@ if (savedTheme === 'dark') {
 
 const container = document.getElementById('root');
 const root = createRoot(container);
-root.render(<App/>);
+
+root.render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);
+
+// Register service worker for PWA in production
+if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(registration => {
+        console.log('SW registered:', registration);
+      })
+      .catch(error => {
+        console.log('SW registration failed:', error);
+      });
+  });
+}

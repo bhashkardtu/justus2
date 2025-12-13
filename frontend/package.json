@@ -11,13 +11,15 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.14",
+    "cross-env": "^10.1.0",
     "postcss": "^8.4.24",
     "tailwindcss": "^3.4.7"
   },
-  "proxy": "http://localhost:8080",
+  "proxy": "http://localhost:5000",
   "scripts": {
     "start": "react-scripts start",
-    "build": "npx tailwindcss init -p --override && react-scripts build",
+    "build": "npx tailwindcss init -p --override && cross-env GENERATE_SOURCEMAP=false react-scripts build",
+    "build:analyze": "npx tailwindcss init -p --override && npm run build && npx source-map-explorer 'build/static/js/*.js'",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

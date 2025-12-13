@@ -1,12 +1,16 @@
 import express from 'express';
-import { register, login, logout, getUsers } from '../controllers/authController.js';
+import { register, login, logout, getUsers, verifyEmail, resendVerification, connectUser } from '../controllers/authController.js';
 import { authenticateJWT } from '../middleware/auth.js';
+import { authLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
-router.post('/register', register);
-router.post('/login', login);
+router.post('/register', authLimiter, register);
+router.post('/login', authLimiter, login);
+router.post('/verify-email', authLimiter, verifyEmail);
+router.post('/resend-verification', authLimiter, resendVerification);
 router.post('/logout', logout);
-router.get('/users', getUsers);
+router.get('/users', authenticateJWT, getUsers);
+router.post('/connect', authenticateJWT, connectUser);
 
 export default router;

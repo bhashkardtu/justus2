@@ -5,11 +5,12 @@ import Conversation from '../models/Conversation.js';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/justus';
 
-// Create GridFS storage
+// Create GridFS storage that reuses the existing connection
 const storage = new GridFsStorage({
-  url: MONGODB_URI,
-  options: { useNewUrlParser: true, useUnifiedTopology: true },
+  db: mongoose.connection,
   file: (req, file) => {
+    console.log('GridFS: Preparing to store file:', file.originalname);
+    console.log('GridFS: ConversationId:', req.body.conversationId || req.query.conversationId);
     return {
       filename: file.originalname,
       bucketName: 'fs',
@@ -32,7 +33,14 @@ export const uploadFile = (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
     
-    console.log('File uploaded successfully:', req.file);
+    console.log('=== FILE UPLOAD SUCCESS ===');
+    console.log('File ID:', req.file.id.toString());
+    console.log('Filename:', req.file.filename);
+    console.log('ContentType:', req.file.contentType);
+    console.log('ConversationId:', req.body.conversationId || req.query.conversationId);
+    console.log('Database:', mongoose.connection.db.databaseName);
+    console.log('===========================');
+    
     res.json({
       id: req.file.id.toString(),
       filename: req.file.filename,
@@ -48,8 +56,10 @@ export const getFile = async (req, res) => {
   try {
     const { id } = req.params;
     
-    console.log('MediaController: Accessing file with ID:', id);
-    console.log('MediaController: User ID:', req.userId);
+    console.log('=== FILE RETRIEVAL REQUEST ===');
+    console.log('File ID:', id);
+    console.log('User ID:', req.userId);
+    console.log('Database:', mongoose.connection.db.databaseName);
     
     if (!req.userId) {
       console.log('MediaController: No authentication found, returning 401');
@@ -61,6 +71,13 @@ export const getFile = async (req, res) => {
     
     // Find the file
     const filesCollection = db.collection('fs.files');
+    
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.log('MediaController: Invalid ObjectId format:', id);
+      return res.status(400).json({ message: 'Invalid file ID format' });
+    }
+    
     const file = await filesCollection.findOne({ _id: new mongoose.Types.ObjectId(id) });
     
     if (!file) {

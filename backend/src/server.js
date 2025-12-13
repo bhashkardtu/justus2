@@ -4,13 +4,17 @@ import { Server } from 'socket.io';
 import mongoose from 'mongoose';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import compression from 'compression';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { configureSocketIO } from './websocket/socketHandler.js';
 import authRoutes from './routes/authRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import mediaRoutes from './routes/mediaRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
+import configRoutes from './routes/configRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { apiLimiter } from './middleware/rateLimiter.js';
 import path from 'path';
 import { fileURLToPath } from "url";
 
@@ -25,31 +29,91 @@ const __dirname = path.dirname(__filename);
 app.set('trust proxy', 1);
 
 // CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(origin => origin.trim()) || [
   'http://localhost:3000',
   'http://localhost:3001',
+  'https://unmetered-mountainously-torri.ngrok-free.dev'
 ];
 
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+console.log('Allowed CORS Origins:', allowedOrigins);
+
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable for WebSocket compatibility
+  crossOriginEmbedderPolicy: false
 }));
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// CORS configuration with function to handle dynamic origins
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or Postman)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('Blocked by CORS:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours
+}));
+
+// Compression middleware
+app.use(compression());
+
+// Middleware with size limits for security
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+
+// Get NODE_ENV
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Request logging in development
+if (NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+  });
+}
+
+// Apply rate limiting to all API routes (skip in development)
+if (NODE_ENV === 'production') {
+  app.use('/api/', apiLimiter);
+  console.log('✓ Rate limiting enabled for production');
+} else {
+  console.log('⚠ Rate limiting disabled for development');
+}
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/health', healthRoutes);
+app.use('/api/config', configRoutes);
+
+
+
+// Serve frontend build
+app.use(express.static(path.join(__dirname, "..", "build")));
+
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "build", "index.html"));
+});
+
+
+
 
 // Error handler
 app.use(errorHandler);
+
+
+
 
 // Socket.IO configuration
 const io = new Server(httpServer, {
@@ -64,14 +128,17 @@ configureSocketIO(io);
 
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/justus';
-const PORT = process.env.PORT || 8080;
-const NODE_ENV = process.env.NODE_ENV || 'development';
+const PORT = process.env.PORT || 5000;
 
 console.log(`Starting server in ${NODE_ENV} mode...`);
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
+  maxPoolSize: 10,
+  minPoolSize: 2,
+  socketTimeoutMS: 45000,
+  serverSelectionTimeoutMS: 5000
 })
 .then(async () => {
   console.log('✓ Connected to MongoDB');

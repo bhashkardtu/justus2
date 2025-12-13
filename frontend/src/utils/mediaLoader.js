@@ -16,8 +16,8 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
     
     // Convert to relative URL for the API call to ensure headers are included
     let apiUrl = mediaUrl;
-    if (mediaUrl.startsWith('http://localhost:8080')) {
-      apiUrl = mediaUrl.replace('http://localhost:8080', '');
+    if (mediaUrl.startsWith('http://localhost:5000')) {
+      apiUrl = mediaUrl.replace('http://localhost:5000', '');
     }
     
     console.log('Using API URL:', apiUrl);
@@ -82,7 +82,7 @@ export const loadAuthenticatedDocument = async (documentUrl, mimeType = 'applica
     console.log('Loading authenticated document:', documentUrl);
     
     // Get the backend API URL
-    const apiURL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+    const apiURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
     
     // Convert to full URL if needed
     let fullUrl = documentUrl;

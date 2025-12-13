@@ -1,14 +1,64 @@
-import React, { useState, useEffect } from 'react';
-import ChatPage from './pages/ChatPage';
-import LoginPage from './pages/LoginPage';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoadingSpinner from './components/LoadingSpinner';
-import { setAuthToken } from './services/api';
+import api, { setAuthToken } from './services/api';
+
+// Lazy load pages for better performance
+const ChatPage = lazy(() => import('./pages/ChatPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const SignupPage = lazy(() => import('./pages/SignupPage'));
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
 
 export default function App(){
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [view, setView] = useState('login'); // login, signup, verify
+  const [verificationEmail, setVerificationEmail] = useState('');
+
+  // Check for invite link on load
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/connect/')) {
+      const inviteCode = path.split('/connect/')[1];
+      if (inviteCode) {
+        localStorage.setItem('pendingInviteCode', inviteCode);
+        // Clean URL to avoid re-processing
+        window.history.replaceState({}, document.title, '/');
+      }
+    }
+  }, []);
+
+  // Process pending invite when user is logged in
+  useEffect(() => {
+    const processPendingInvite = async () => {
+      const inviteCode = localStorage.getItem('pendingInviteCode');
+      if (inviteCode && user) {
+        if (localStorage.getItem('invite_connecting') === '1') return; // prevent duplicate
+        localStorage.setItem('invite_connecting', '1');
+        try {
+          const res = await api.post('/api/auth/connect', { inviteCode });
+          localStorage.removeItem('pendingInviteCode');
+          alert(`Connected with ${res.data.user.displayName}!`);
+          // Force reload to update contacts list
+          window.location.reload();
+        } catch (error) {
+          console.error('Failed to connect:', error);
+          const msg = error.response?.data?.message || 'Failed to connect using invite link.';
+          if (msg !== 'Already connected') {
+             alert(msg);
+          }
+          localStorage.removeItem('pendingInviteCode');
+        } finally {
+          localStorage.removeItem('invite_connecting');
+        }
+      }
+    };
+
+    if (user) {
+      processPendingInvite();
+    }
+  }, [user]);
 
   // Sync theme changes from localStorage
   useEffect(() => {
@@ -51,12 +101,14 @@ export default function App(){
   const handleLogin = (userData) => {
     setUser(userData);
     localStorage.setItem('userData', JSON.stringify(userData));
+    setView('chat');
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.clear();
     setAuthToken(null);
+    setView('login');
   };
 
   const toggleTheme = () => {
@@ -79,6 +131,47 @@ export default function App(){
   }
 
   const darkMode = theme === 'dark';
+
+  const renderContent = () => {
+    if (user) {
+      return <ChatPage user={user} onLogout={handleLogout} />;
+    }
+
+    if (view === 'signup') {
+      return (
+        <SignupPage 
+          onSignupSuccess={(email) => {
+            setVerificationEmail(email);
+            setView('verify');
+          }}
+          onSwitchToLogin={() => setView('login')}
+          theme={theme}
+        />
+      );
+    }
+    
+    if (view === 'verify') {
+      return (
+        <VerifyEmailPage 
+          email={verificationEmail}
+          onVerificationSuccess={handleLogin}
+          theme={theme}
+        />
+      );
+    }
+
+    return (
+      <LoginPage 
+        onLogin={handleLogin} 
+        onSwitchToSignup={() => setView('signup')}
+        onRequiresVerification={(email) => {
+          setVerificationEmail(email);
+          setView('verify');
+        }}
+        theme={theme} 
+      />
+    );
+  };
 
   return (
     <ErrorBoundary>
@@ -128,19 +221,19 @@ export default function App(){
                 <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   Welcome, <span className="font-semibold text-indigo-600">{user.displayName || user.username}</span>
                 </div>
-                <button 
-                  onClick={handleLogout}
-                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
-                >
-                  Logout
-                </button>
               </>
             )}
           </div>
         </div>
       </header>
       <main className="max-w-6xl mx-auto py-8 px-4">
-        {!user ? <LoginPage onLogin={handleLogin} theme={theme} /> : <ChatPage user={user} onLogout={handleLogout} />}
+        <Suspense fallback={
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <LoadingSpinner size="lg" text="Loading..." />
+          </div>
+        }>
+          {renderContent()}
+        </Suspense>
       </main>
     </div>
     </ErrorBoundary>
