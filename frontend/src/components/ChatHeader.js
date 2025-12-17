@@ -1,4 +1,6 @@
 import React from 'react';
+import ProfileModal from './ProfileModal';
+import { getAvatarUrl } from '../services/avatarService';
 
 export default function ChatHeader({
   otherUser,
@@ -16,16 +18,20 @@ export default function ChatHeader({
   voiceCallState,
   videoCallState,
   otherUserOnline,
-  onLogout
+  onLogout,
+  onAvatarUpdate
 }) {
   // Highlight the Contacts button for first-time users
   const [showContactsHint, setShowContactsHint] = React.useState(() => !localStorage.getItem('contacts_hint_dismissed'));
+  const [showProfileModal, setShowProfileModal] = React.useState(false);
+
+  const displayUser = otherUser || user;
 
   return (
     <header style={{ background: colors.header, color: colors.headerText, padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
       <div style={{ position: 'relative' }}>
         <img
-          src={otherUser?.avatarUrl || `https://ui-avatars.com/api/?name=${otherUser?.displayName || otherUser?.username || 'User'}`}
+          src={getAvatarUrl(displayUser?.avatarUrl) || `https://ui-avatars.com/api/?name=${displayUser?.displayName || displayUser?.username || 'User'}`}
           alt="Avatar"
           style={{ border: `2px solid ${otherUserOnline ? '#25d366' : '#6b7280'}`, borderRadius: '50%', width: '40px', height: '40px', objectFit: 'cover' }}
         />
@@ -35,7 +41,7 @@ export default function ChatHeader({
       </div>
       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
         <div style={{ fontWeight: 600, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>{otherUser?.displayName || otherUser?.username || 'User'}</span>
+          <span>{displayUser?.displayName || displayUser?.username || 'User'}</span>
           {/* Contacts pill next to title */}
           <button
             onClick={() => {
@@ -137,6 +143,30 @@ export default function ChatHeader({
 
       {/* Removed duplicate round Contacts icon; replaced with title-adjacent pill */}
 
+      {/* Profile Button */}
+      <button
+        onClick={() => setShowProfileModal(true)}
+        style={{
+          padding: '8px',
+          borderRadius: '50%',
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: 'none',
+          color: colors.headerText,
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+        title="Profile Settings"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '20px', height: '20px' }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
+
       {/* Logout Button */}
       <button
         onClick={onLogout}
@@ -161,6 +191,22 @@ export default function ChatHeader({
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
         </svg>
       </button>
+
+      {/* Profile Modal */}
+      <ProfileModal
+        show={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+        onAvatarUpdate={(newUrl) => {
+          console.log('[chat] Avatar updated:', newUrl);
+          if (onAvatarUpdate) {
+            onAvatarUpdate(newUrl);
+          }
+          // Also update the displayed user avatar immediately
+          user.avatarUrl = newUrl;
+          setShowProfileModal(false);
+        }}
+      />
     </header>
   );
 }

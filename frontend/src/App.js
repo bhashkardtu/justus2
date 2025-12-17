@@ -104,6 +104,14 @@ export default function App(){
     setView('chat');
   };
 
+  const handleUserUpdate = (updates) => {
+    setUser(prev => {
+      const next = { ...prev, ...updates };
+      localStorage.setItem('userData', JSON.stringify(next));
+      return next;
+    });
+  };
+
   const handleLogout = () => {
     setUser(null);
     localStorage.clear();
@@ -134,7 +142,7 @@ export default function App(){
 
   const renderContent = () => {
     if (user) {
-      return <ChatPage user={user} onLogout={handleLogout} />;
+      return <ChatPage user={user} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />;
     }
 
     if (view === 'signup') {

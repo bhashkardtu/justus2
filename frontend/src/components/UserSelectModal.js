@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '../services/api';
+import { getAvatarUrl } from '../services/avatarService';
 
 export default function UserSelectModal({ show, onClose, availableUsers, currentUserId, onSelect }) {
   const [inviteCode, setInviteCode] = useState('');
@@ -76,12 +77,14 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
           {availableUsers.filter(u => u.id !== currentUserId).map(u => (
             <button key={u.id} onClick={() => onSelect(u.id)} className="w-full text-left p-4 hover:bg-gray-50 rounded-xl transition-colors duration-200 border border-transparent hover:border-gray-200">
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-md">
-                  <span className="text-white font-semibold">{(u.displayName || u.username).charAt(0).toUpperCase()}</span>
-                </div>
+                <img
+                  src={getAvatarUrl(u.avatarUrl) || `https://ui-avatars.com/api/?name=${u.displayName || u.username}&size=48`}
+                  alt={u.displayName || u.username}
+                  className="w-12 h-12 rounded-full object-cover shadow-md border-2 border-indigo-200"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-gray-900 truncate">{u.displayName || u.username}</div>
-                  <div className="text-sm text-gray-500 truncate">ID: {u.id.slice(0, 8)}...</div>
+                  <div className="text-sm text-gray-500 truncate">@{u.username}</div>
                 </div>
                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

@@ -70,7 +70,7 @@ export default function VoiceCallModal({
           border: '4px solid ' + (colors?.sendBtn || '#25d366')
         }}>
           <img
-            src={otherUser?.avatarUrl || `https://ui-avatars.com/api/?name=${otherUser?.displayName || otherUser?.username || 'User'}&size=120`}
+            src={getAvatarUrl(otherUser?.avatarUrl) || `https://ui-avatars.com/api/?name=${otherUser?.displayName || otherUser?.username || 'User'}&size=120`}
             alt="User"
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />

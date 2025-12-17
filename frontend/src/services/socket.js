@@ -1,9 +1,11 @@
 import { io } from 'socket.io-client';
+import CryptoService from './crypto';
 
 // Use environment variable for WebSocket URL, fallback to localhost
 const WS_URL = process.env.REACT_APP_WS_URL || 'http://localhost:5000';
 
 let socket = null;
+let userPublicKeys = {}; // Cache of userId -> publicKey
 
 export function connectSocket(token, onMessage, onConnected, handlers = {}){
   if (socket && socket.connected) {
@@ -74,6 +76,13 @@ export function connectSocket(token, onMessage, onConnected, handlers = {}){
     if (handlers.onUserStatus) handlers.onUserStatus(data);
   });
 
+  // Listen for key exchange offer
+  socket.on('crypto.key-offer', (data) => {
+    console.log('Received public key from:', data.userId);
+    userPublicKeys[data.userId] = data.publicKey;
+    if (handlers.onKeyExchange) handlers.onKeyExchange(data);
+  });
+
   // Listen for read receipts
   socket.on('MESSAGE_READ', (data) => {
     console.log('Message read:', data);
@@ -131,6 +140,92 @@ export function sendSocketMessage(message){
   } catch (error) {
     console.error('Failed to send Socket.IO message:', error);
     return false;
+  }
+}
+
+/**
+ * Exchange public key with server for E2EE
+ * @param {Object} keyPair - { publicKey, secretKey }
+ */
+export function exchangePublicKey(keyPair) {
+  if (!socket || !socket.connected) {
+    console.error('Cannot exchange key - Socket not connected');
+    return false;
+  }
+
+  try {
+    socket.emit('crypto.exchange-key', {
+      publicKey: keyPair.publicKey
+    });
+    console.log('Public key exchanged');
+    return true;
+  } catch (error) {
+    console.error('Failed to exchange public key:', error);
+    return false;
+  }
+}
+
+/**
+ * Get cached public key for a user
+ * @param {string} userId
+ * @returns {string|null}
+ */
+export function getPublicKey(userId) {
+  return userPublicKeys[userId] || null;
+}
+
+/**
+ * Send encrypted message
+ * @param {Object} messageData - { content, receiverId, conversationId, type, ... }
+ * @param {string} senderSecretKey - Base64 encoded secret key
+ * @param {string} receiverPublicKey - Base64 encoded public key
+ * @returns {boolean}
+ */
+export function sendEncryptedMessage(messageData, senderSecretKey, receiverPublicKey) {
+  try {
+    const { ciphertext, nonce } = CryptoService.encrypt(
+      messageData.content,
+      senderSecretKey,
+      receiverPublicKey
+    );
+
+    const encryptedMessage = {
+      ...messageData,
+      ciphertext,
+      nonce,
+      content: undefined  // Don't send plaintext
+    };
+
+    return sendSocketMessage(encryptedMessage);
+  } catch (error) {
+    console.error('Failed to encrypt and send message:', error);
+    return false;
+  }
+}
+
+/**
+ * Decrypt message
+ * @param {Object} message - Message from server
+ * @param {string} senderPublicKey - Base64 encoded sender's public key
+ * @param {string} receiverSecretKey - Base64 encoded receiver's secret key
+ * @returns {string} Decrypted content
+ */
+export function decryptMessage(message, senderPublicKey, receiverSecretKey) {
+  try {
+    if (!message.ciphertext || !message.nonce) {
+      console.warn('Message is not encrypted');
+      return message.content;
+    }
+
+    return CryptoService.decrypt(
+      message.ciphertext,
+      message.nonce,
+      senderPublicKey,
+      receiverSecretKey
+    );
+  } catch (error) {
+    console.error('Failed to decrypt message:', error);
+    return null;
   }
 }
 

@@ -131,6 +131,7 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/justus
 const PORT = process.env.PORT || 5000;
 
 console.log(`Starting server in ${NODE_ENV} mode...`);
+console.log("CONNECTION STRING FOR MONGO :  ",MONGODB_URI);
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,

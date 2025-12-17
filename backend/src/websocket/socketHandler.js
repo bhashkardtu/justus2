@@ -2,6 +2,8 @@ import { verifyToken } from '../utils/jwtUtil.js';
 import Message from '../models/Message.js';
 import Conversation from '../models/Conversation.js';
 import messageService from '../services/messageService.js';
+import CryptoService from '../services/cryptoService.js';
+import User from '../models/User.js';
 
 export const configureSocketIO = (io) => {
   // Authentication middleware for Socket.IO
@@ -57,11 +59,40 @@ export const configureSocketIO = (io) => {
       status: 'online'
     });
     
-    // Handle chat.send
+    // Handle key exchange for E2EE
+    socket.on('crypto.exchange-key', async (data) => {
+      try {
+        const { receiverId, publicKey } = data;
+        const userId = socket.userId;
+        
+        console.log(`Key exchange: ${userId} -> ${receiverId}`);
+        
+        // Store/update user's public key
+        await User.updateOne(
+          { _id: userId },
+          { publicKey },
+          { upsert: false }
+        );
+        
+        // Send requester's public key to the other user
+        io.to(`user:${receiverId}`).emit('crypto.key-offer', {
+          userId,
+          username: socket.username,
+          publicKey
+        });
+        
+        socket.emit('crypto.key-sent');
+      } catch (error) {
+        console.error('Error handling crypto.exchange-key:', error);
+        socket.emit('error', { message: error.message });
+      }
+    });
+    
+    // Handle chat.send with encryption support
     socket.on('chat.send', async (incoming) => {
       try {
         console.log('=== WEBSOCKET MESSAGE RECEIVED ===');
-        console.log('Incoming message:', incoming.content);
+        console.log('Incoming message (encrypted):', !!incoming.ciphertext);
         console.log('Sender ID from socket:', socket.userId);
         console.log('Receiver ID:', incoming.receiverId);
         console.log('Conversation ID:', incoming.conversationId);
@@ -72,7 +103,8 @@ export const configureSocketIO = (io) => {
           senderId: userId,
           receiverId: incoming.receiverId,
           type: incoming.type,
-          content: incoming.content,
+          content: incoming.ciphertext || incoming.content,  // Use encrypted content if provided
+          encryptionNonce: incoming.nonce || null,  // Store nonce for decryption
           metadata: incoming.metadata || null,
           replyTo: incoming.replyTo || null,
           timestamp: new Date(),

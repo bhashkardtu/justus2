@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { getAvatarUrl } from '../services/avatarService';
 
 export default function VideoCallModal({ 
   callState, 
@@ -28,16 +29,15 @@ export default function VideoCallModal({
 
   // Set up video streams
   useEffect(() => {
-    if (localVideoRef.current && localStreamRef.current) {
-      localVideoRef.current.srcObject = localStreamRef.current;
+    // Attach local stream whenever call state changes (ref updates don't trigger re-render)
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = localStreamRef.current || null;
     }
-  }, [localStreamRef.current]);
-
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStreamRef.current) {
-      remoteVideoRef.current.srcObject = remoteStreamRef.current;
+    // Attach remote stream
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStreamRef.current || null;
     }
-  }, [remoteStreamRef.current]);
+  }, [callState]);
 
   if (callState === 'idle') return null;
 
@@ -85,7 +85,7 @@ export default function VideoCallModal({
               border: '4px solid ' + (colors?.sendBtn || '#25d366')
             }}>
               <img
-                src={otherUser?.avatarUrl || `https://ui-avatars.com/api/?name=${otherUser?.displayName || otherUser?.username || 'User'}&size=120`}
+                src={getAvatarUrl(otherUser?.avatarUrl) || `https://ui-avatars.com/api/?name=${otherUser?.displayName || otherUser?.username || 'User'}&size=120`}
                 alt="User"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
@@ -157,7 +157,7 @@ export default function VideoCallModal({
         )}
 
         {/* Local video (picture-in-picture) */}
-        {callState === 'connected' && (
+        {callState !== 'idle' && (
           <div style={{
             position: 'absolute',
             top: '20px',

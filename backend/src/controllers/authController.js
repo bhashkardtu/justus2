@@ -1,10 +1,42 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import mongoose from 'mongoose';
+import multer from 'multer';
+import { GridFsStorage } from 'multer-gridfs-storage';
 import User from '../models/User.js';
 import Message from '../models/Message.js';
 import Conversation from '../models/Conversation.js';
 import { generateToken } from '../utils/jwtUtil.js';
 import { sendVerificationEmail } from '../services/emailService.js';
+
+// Create GridFS storage for avatars
+const avatarStorage = new GridFsStorage({
+  db: mongoose.connection,
+  file: (req, file) => {
+    return {
+      filename: `avatar_${req.userId}_${Date.now()}`,
+      bucketName: 'avatars',
+      metadata: {
+        userId: req.userId,
+        uploadedAt: new Date()
+      }
+    };
+  }
+});
+
+export const avatarUpload = multer({ 
+  storage: avatarStorage,
+  fileFilter: (req, file, cb) => {
+    // Only allow image files
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed'));
+    }
+    cb(null, true);
+  },
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+export const avatarUploadMiddleware = avatarUpload.single('avatar');
 
 // Helper to generate 6-digit code
 const generateVerificationCode = () => {
@@ -71,13 +103,13 @@ export const register = async (req, res) => {
       await conversation.save();
     }
 
-    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect/${inviteCode}`;
     const systemMessage = new Message({
       senderId: systemId,
       receiverId: userId,
       conversationId: conversation._id,
       type: 'text',
-      content: `Welcome to JustUs!\n\nHere is your unique invite link to connect with others:\n${inviteLink}\n\nHow to connect with someone:\n1) Ask your friend to share their 8-character invite code or link.\n2) Click the Contacts button (person-with-plus icon) in the chat header.\n3) Enter their invite code in the Add Contact box and press Add.\n\nTip: Your own invite link is above — share it to let others connect with you.`,
+      senderDisplayName: `Welcome to ${saved.displayName}!`,
+      content: `Welcome to JustUs!\n\nHere is your unique invite code to connect with others:\n${inviteCode}\n\nHow to connect with someone:\n1) Ask your friend to share their 8-character invite code.\n2) Click the Contacts button (person-with-plus icon) in the chat header.\n3) Enter their invite code in the Add Contact box and press Add.\n\nTip: Your own invite code is above — share it to let others connect with you.`,
       timestamp: new Date()
     });
     await systemMessage.save();
@@ -142,7 +174,8 @@ export const verifyEmail = async (req, res) => {
         id: user._id,
         username: user.username,
         displayName: user.displayName,
-        email: user.email
+        email: user.email,
+        avatarUrl: user.avatarUrl
       }
     });
     
@@ -233,7 +266,8 @@ export const login = async (req, res) => {
         id: user._id,
         username: user.username,
         displayName: user.displayName,
-        email: user.email
+        email: user.email,
+        avatarUrl: user.avatarUrl
       }
     });
   } catch (error) {
@@ -316,7 +350,7 @@ export const connectUser = async (req, res) => {
 export const getUsers = async (req, res) => {
   try {
     // Only return contacts + System User
-    const currentUser = await User.findById(req.userId).populate('contacts', 'username displayName _id');
+    const currentUser = await User.findById(req.userId).populate('contacts', 'username displayName _id avatarUrl');
     
     if (!currentUser) {
       return res.status(404).json({ message: 'User not found' });
@@ -325,7 +359,8 @@ export const getUsers = async (req, res) => {
     const contacts = currentUser.contacts.map(user => ({
       id: user._id,
       username: user.username,
-      displayName: user.displayName
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl
     }));
 
     const systemUser = {
@@ -342,3 +377,57 @@ export const getUsers = async (req, res) => {
     });
   }
 };
+
+export const uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Store the file ID as avatar URL (will be retrieved from GridFS by ID)
+    user.avatarUrl = `/api/auth/avatar/${req.file.id.toString()}`;
+    await user.save();
+
+    console.log('[auth] Avatar uploaded for user:', req.userId, 'File ID:', req.file.id);
+
+    res.json({
+      message: 'Avatar uploaded successfully',
+      avatarUrl: user.avatarUrl,
+      fileId: req.file.id.toString()
+    });
+  } catch (error) {
+    console.error('[auth] Avatar upload error:', error);
+    res.status(500).json({ message: 'Failed to upload avatar' });
+  }
+};
+
+export const getAvatar = async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const objectId = mongoose.Types.ObjectId.createFromHexString(fileId);
+
+    // Access GridFS bucket from mongoose connection
+    const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+      bucketName: 'avatars'
+    });
+
+    // Check if file exists
+    const files = await mongoose.connection.db.collection('avatars.files').findOne({ _id: objectId });
+    if (!files) {
+      return res.status(404).json({ message: 'Avatar not found' });
+    }
+
+    res.set('Content-Type', files.contentType || 'image/jpeg');
+    const downloadStream = bucket.openDownloadStream(objectId);
+    downloadStream.pipe(res);
+  } catch (error) {
+    console.error('[auth] Avatar retrieval error:', error);
+    res.status(500).json({ message: 'Failed to retrieve avatar' });
+  }
+};
+

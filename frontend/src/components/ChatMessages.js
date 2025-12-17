@@ -140,7 +140,9 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
               style={bubbleStyle}
             >
               {msg.replyTo && renderReplyTo(msg.replyTo, messages)}
-              {msg.type === 'text' && <span>{msg.content}</span>}
+              {msg.type === 'text' && (
+                <span style={{ whiteSpace: 'pre-line' }}>{msg.content}</span>
+              )}
               {msg.type === 'image' && <ImageMessage message={msg} />}
               {msg.type === 'audio' && <AudioMessage message={msg} />}
               {msg.type === 'document' && <DocumentMessage message={msg} />}

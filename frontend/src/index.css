@@ -21,3 +21,26 @@ input:focus, textarea:focus, button:focus {
 * {
   box-sizing: border-box;
 }
+
+/* Responsive scale: subtly reduce overall size on larger screens */
+:root {
+  font-size: 16px;
+}
+
+@media (min-width: 1024px) { /* lg */
+  :root {
+    font-size: 15px;
+  }
+}
+
+@media (min-width: 1280px) { /* xl */
+  :root {
+    font-size: 14.5px;
+  }
+}
+
+@media (min-width: 1536px) { /* 2xl */
+  :root {
+    font-size: 14px;
+  }
+}

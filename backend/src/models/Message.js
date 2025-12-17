@@ -5,6 +5,10 @@ const messageSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  senderDisplayName: {
+    type: String,
+    default: null
+  },
   receiverId: {
     type: String,
     required: true
@@ -21,6 +25,11 @@ const messageSchema = new mongoose.Schema({
   content: {
     type: String,
     required: true
+  },
+  // Encryption: nonce used for decryption (stored plaintext, not secret)
+  encryptionNonce: {
+    type: String,
+    default: null
   },
   metadata: {
     type: mongoose.Schema.Types.Mixed,

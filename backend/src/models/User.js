@@ -41,7 +41,19 @@ const userSchema = new mongoose.Schema({
   contacts: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }]
+  }],
+  publicKey: {
+    type: String,
+    sparse: true
+  },
+  encryptedSecretKey: {
+    type: String,
+    sparse: true
+  },
+  avatarUrl: {
+    type: String,
+    default: null
+  }
 }, {
   timestamps: true,
   collection: 'users'

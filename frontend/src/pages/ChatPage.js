@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { sendSocketMessage, getConnectionStatus, getSocket } from '../services/socket';
+import { sendSocketMessage, getConnectionStatus, getSocket, exchangePublicKey, getPublicKey } from '../services/socket';
 import { setAuthToken, getAuthenticatedApi } from '../services/api';
 import ChatHeader from '../components/ChatHeader';
 import ChatMessages from '../components/ChatMessages';
@@ -15,10 +15,11 @@ import useImageUpload from '../hooks/useImageUpload';
 import useVoiceMessage from '../hooks/useVoiceMessage';
 import useVoiceCall from '../hooks/useVoiceCall';
 import useVideoCall from '../hooks/useVideoCall';
+import useEncryption from '../hooks/useEncryption';
 
 //
 
-export default function ChatPage({ user, onLogout }){
+export default function ChatPage({ user, onLogout, onUserUpdate }){
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [conversationId, setConversationId] = useState(null);
@@ -34,6 +35,9 @@ export default function ChatPage({ user, onLogout }){
   // Theme (light / dark) - sync from localStorage
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const [loading, setLoading] = useState(true);
+
+  // E2EE encryption hook
+  const encryption = useEncryption();
 
   // Listen for theme changes from localStorage (from App.js toggle)
   useEffect(() => {
@@ -60,6 +64,12 @@ export default function ChatPage({ user, onLogout }){
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [isReconnecting, setIsReconnecting] = useState(false);
+
+  const handleAvatarUpdate = (newUrl) => {
+    if (onUserUpdate) {
+      onUserUpdate({ avatarUrl: newUrl });
+    }
+  };
   
   const connectedRef = useRef(false);
   const audioStreamRef = useRef(null); // kept for cleanup compatibility (managed inside hook too)
@@ -89,11 +99,56 @@ export default function ChatPage({ user, onLogout }){
 
   // WebSocket connection, reconnection, and typing via hook
   const lastTypingTimeRef = useRef(0);
+  
+  // Wrapper for setMessages to handle decryption of encrypted messages
+  const setMessagesWithDecryption = useCallback((updater) => {
+    setMessages(prevMessages => {
+      const newMessages = typeof updater === 'function' ? updater(prevMessages) : updater;
+      
+      // Decrypt any encrypted messages
+      return Array.isArray(newMessages) 
+        ? newMessages.map(msg => {
+            // If message has ciphertext and nonce, try to decrypt
+            if (msg.ciphertext && msg.encryptionNonce && msg.senderId) {
+              try {
+                const keyPair = encryption.getKeyPair();
+                const senderPublicKey = encryption.getPublicKeyForUser(msg.senderId);
+                
+                if (senderPublicKey && keyPair) {
+                  const decrypted = encryption.decryptMessage(
+                    msg.ciphertext,
+                    msg.encryptionNonce,
+                    senderPublicKey
+                  );
+                  if (decrypted) {
+                    console.log('Decrypted message:', msg.id);
+                    return {
+                      ...msg,
+                      content: decrypted,
+                      ciphertext: undefined,
+                      encryptionNonce: undefined,
+                      isDecrypted: true
+                    };
+                  }
+                } else {
+                  console.warn('Cannot decrypt message - missing keys for sender:', msg.senderId);
+                }
+              } catch (error) {
+                console.error('Failed to decrypt message:', error);
+                // Keep original encrypted message
+              }
+            }
+            return msg;
+          })
+        : newMessages;
+    });
+  }, [encryption]);
+  
   const { onTyping: onTypingHook } = useChatSocket({
     token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
     userId: user.id,
     availableUsers,
-    setMessages,
+    setMessages: setMessagesWithDecryption,
     setTypingUser,
     setConnectionStatus,
     setReconnectAttempts,
@@ -237,17 +292,21 @@ export default function ChatPage({ user, onLogout }){
         setAvailableUsers(users);
         // Always use deterministic user IDs for conversation
         let otherId = otherUserId;
+
         if (!otherId) {
-          const found = users.find(u => u.id !== user.id);
-          if (found) {
-            otherId = found.id;
+          // Default to System first so invite code is visible, otherwise first non-self contact
+          const systemUser = users.find(u => u.id === '000000000000000000000000');
+          const firstContact = users.find(u => u.id !== user.id && u.id !== '000000000000000000000000');
+          const pick = systemUser || firstContact;
+          if (pick) {
+            otherId = pick.id;
             setOtherUserId(otherId);
-            setOtherUser(found);
+            setOtherUser(pick);
             localStorage.setItem('otherUserId', otherId);
           }
         } else {
           const found = users.find(u => u.id === otherId);
-          setOtherUser(found);
+          setOtherUser(found || null);
         }
         
         // Always use the same conversation for the same user pair
@@ -276,7 +335,8 @@ export default function ChatPage({ user, onLogout }){
             console.log('Loading messages for conversation:', conversationId);
             const res = await authenticatedApi.get('/api/chat/messages?conversationId=' + conversationId);
             console.log('Messages response:', res.data);
-            setMessages(res.data);
+            // Use wrapper to decrypt messages on initial load
+            setMessagesWithDecryption(res.data);
             // Mark messages as read when conversation is loaded
             markMessagesAsRead(conversationId);
           } catch (error) {
@@ -309,6 +369,15 @@ export default function ChatPage({ user, onLogout }){
 
     initializeChat();
     let cleanupIntervalId;
+    
+    // Exchange public key with server for E2EE after connection
+    const keyExchangeTimeout = setTimeout(() => {
+      if (encryption.getKeyPair()) {
+        encryption.exchangeKey();
+        console.log('Public key exchanged with server');
+      }
+    }, 500);
+    
     // Setup periodic cleanup of old temporary messages
     cleanupIntervalId = setInterval(() => {
       setMessages(prev => prev.map(msg => {
@@ -415,15 +484,51 @@ export default function ChatPage({ user, onLogout }){
         setUserScrolledUp(false);
       }, 100);
       
+      // Get receiver's public key for encryption
+      const receiverPublicKey = encryption.getPublicKeyForUser(targetUserId);
+      let messageToSend;
+      
+      if (receiverPublicKey && encryption.getKeyPair()) {
+        // Encrypt the message
+        const encrypted = encryption.encryptMessage(text.trim(), receiverPublicKey);
+        if (encrypted) {
+          messageToSend = {
+            receiverId: targetUserId,
+            type: 'text',
+            ciphertext: encrypted.ciphertext,
+            nonce: encrypted.nonce,
+            conversationId,
+            senderId: currentUserId,
+            replyTo: replyingTo?.id || null
+          };
+          console.log('Message encrypted with E2EE');
+        } else {
+          // Fallback to plaintext if encryption fails
+          messageToSend = {
+            receiverId: targetUserId,
+            type: 'text',
+            content: text.trim(),
+            conversationId,
+            senderId: currentUserId,
+            replyTo: replyingTo?.id || null
+          };
+          console.warn('Encryption failed, sending as plaintext');
+        }
+      } else {
+        // No public key or keypair available, send as plaintext
+        messageToSend = {
+          receiverId: targetUserId,
+          type: 'text',
+          content: text.trim(),
+          conversationId,
+          senderId: currentUserId,
+          replyTo: replyingTo?.id || null
+        };
+        console.log('No encryption keys available, sending as plaintext');
+      }
+      
       // Try WebSocket first
-      const wsSuccess = sendSocketMessage({ 
-        receiverId: targetUserId, 
-        type: 'text', 
-        content: text.trim(), 
-        conversationId,
-        senderId: currentUserId,
-        replyTo: replyingTo?.id || null
-      });
+      const wsSuccess = sendSocketMessage(messageToSend);
       
       // Set up automatic cleanup of temporary message after 10 seconds
       const cleanupTimeout = setTimeout(() => {
@@ -644,6 +749,7 @@ export default function ChatPage({ user, onLogout }){
           videoCallState={videoCallState}
           otherUserOnline={otherUserOnline}
           onLogout={onLogout}
+          onAvatarUpdate={handleAvatarUpdate}
         />
 
           {/* Modern Messages Area */}
