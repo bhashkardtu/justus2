@@ -13,6 +13,7 @@ import chatRoutes from './routes/chatRoutes.js';
 import mediaRoutes from './routes/mediaRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
 import configRoutes from './routes/configRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import path from 'path';
@@ -96,6 +97,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/ai', aiRoutes);
 
 
 

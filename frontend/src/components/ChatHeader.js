@@ -10,6 +10,7 @@ export default function ChatHeader({
   theme,
   availableUsers,
   setShowOtherUserModal,
+  setShowSearchModal,
   user,
   messages,
   colors,
@@ -84,6 +85,32 @@ export default function ChatHeader({
           {isReconnecting && <span style={{ marginLeft: '8px', color: '#eab308' }}>• reconnecting...</span>}
         </div>
       </div>
+      
+      {/* Smart Search Button */}
+      {otherUser && (
+        <button
+          onClick={() => setShowSearchModal && setShowSearchModal(true)}
+          style={{
+            padding: '8px',
+            borderRadius: '50%',
+            background: 'rgba(255, 255, 255, 0.1)',
+            border: 'none',
+            color: colors.headerText,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+          title="Smart Search (AI-powered)"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '20px', height: '20px' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+        </button>
+      )}
       
       {/* Voice Call Button */}
       {otherUser && voiceCallState === 'idle' && videoCallState === 'idle' && (

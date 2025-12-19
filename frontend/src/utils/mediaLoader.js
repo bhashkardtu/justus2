@@ -2,76 +2,94 @@
 import api, { getAuthenticatedApi } from '../services/api';
 
 const mediaCache = new Map();
+const blobCache = new Map(); // Keep blobs in memory to prevent garbage collection
 
-// For images - returns blob URL for <img> tags
 export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
   // Check if we already have this media cached
   if (mediaCache.has(mediaId)) {
-    console.log('MediaLoader: Using cached media for ID:', mediaId);
+    console.log('🎵 MediaLoader: Using cached media for ID:', mediaId);
     return mediaCache.get(mediaId);
   }
 
   try {
-    console.log('Loading authenticated media:', mediaUrl);
+    console.log('🎵 MediaLoader: Loading authenticated media');
+    console.log('  Original URL:', mediaUrl);
+    console.log('  Media ID:', mediaId);
     
-    // Convert to relative URL for the API call to ensure headers are included
-    let apiUrl = mediaUrl;
-    if (mediaUrl.startsWith('http://localhost:5000')) {
-      apiUrl = mediaUrl.replace('http://localhost:5000', '');
-    }
+    // IMPORTANT: Always use relative paths for API calls
+    // The proxy will handle routing to the correct backend
+    let apiUrl = '/api/media/file/' + mediaId;
     
-    console.log('Using API URL:', apiUrl);
+    console.log('  Using relative URL:', apiUrl);
     
     // Ensure we have a token before making the request
     const token = localStorage.getItem('token');
     if (!token) {
-      console.error('MediaLoader: No authentication token available');
+      console.error('🎵 MediaLoader: ❌ No authentication token available');
       throw new Error('No authentication token available');
     }
     
-    console.log('MediaLoader: Making authenticated request with token:', token.substring(0, 20) + '...');
+    console.log('🎵 MediaLoader: Token found:', token.substring(0, 30) + '...');
     
-    // Use regular api instance (it will include credentials/cookies automatically)
-    const response = await api.get(apiUrl, {
-      responseType: 'blob',
-      timeout: 15000, // Increased timeout to 15 seconds
+    // Method 1: Try with Authorization header
+    console.log('🎵 MediaLoader: Attempting fetch with Authorization header');
+    try {
+      const headerResponse = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'audio/*,image/*'
+        }
+      });
+      
+      console.log('  Response status:', headerResponse.status);
+      
+      if (headerResponse.ok) {
+        const blob = await headerResponse.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        blobCache.set(mediaId, blob);
+        mediaCache.set(mediaId, blobUrl);
+        console.log('✅ MediaLoader: Successfully loaded media with header auth');
+        console.log('  Blob URL:', blobUrl);
+        return blobUrl;
+      } else if (headerResponse.status === 401) {
+        console.warn('🎵 MediaLoader: Header auth returned 401, trying query param');
+      }
+    } catch (headerError) {
+      console.warn('🎵 MediaLoader: Header auth failed:', headerError.message);
+    }
+    
+    // Method 2: Fallback to query parameter
+    console.log('🎵 MediaLoader: Attempting fetch with token query parameter');
+    const separator = apiUrl.includes('?') ? '&' : '?';
+    const urlWithToken = `${apiUrl}${separator}token=${token}`;
+    
+    const queryResponse = await fetch(urlWithToken, {
+      method: 'GET',
       headers: {
-        'Accept': 'image/*,audio/*,*/*',
-        'Authorization': `Bearer ${token}` // Explicitly include token
+        'Accept': 'audio/*,image/*'
       }
     });
     
-    console.log('MediaLoader: Response status:', response.status);
-    console.log('MediaLoader: Response headers:', response.headers);
+    console.log('  Response status:', queryResponse.status);
     
-    // Create a blob URL that can be used by img/audio tags
-    const blob = response.data;
-    const blobUrl = URL.createObjectURL(blob);
-    
-    // Cache the blob URL
-    mediaCache.set(mediaId, blobUrl);
-    
-    console.log('Successfully loaded and cached media:', mediaId, blobUrl);
-    return blobUrl;
-  } catch (error) {
-    console.error('Failed to load authenticated media:', error);
-    console.error('Error details:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      headers: error.response?.headers,
-      config: error.config,
-      message: error.message
-    });
-    
-    // Log the specific error for debugging
-    if (error.response?.status === 401) {
-      console.error('MediaLoader: Authentication failed - token may be invalid or expired');
-    } else if (error.response?.status === 403) {
-      console.error('MediaLoader: Access forbidden - user may not be authorized for this media');
-    } else if (error.response?.status === 404) {
-      console.error('MediaLoader: Media file not found');
+    if (!queryResponse.ok) {
+      console.error('❌ MediaLoader: Query param auth also failed');
+      console.error('  Status:', queryResponse.status);
+      throw new Error(`Failed to fetch media: ${queryResponse.status}`);
     }
     
+    const blob = await queryResponse.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    blobCache.set(mediaId, blob);
+    mediaCache.set(mediaId, blobUrl);
+    console.log('✅ MediaLoader: Successfully loaded media with query param');
+    console.log('  Blob URL:', blobUrl);
+    return blobUrl;
+    
+  } catch (error) {
+    console.error('❌ MediaLoader: Failed to load authenticated media');
+    console.error('  Error:', error.message);
     throw error;
   }
 };

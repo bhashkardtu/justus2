@@ -9,6 +9,7 @@ import ComposeBar from '../components/ComposeBar';
 import UserSelectModal from '../components/UserSelectModal';
 import VoiceCallModal from '../components/VoiceCallModal';
 import VideoCallModal from '../components/VideoCallModal';
+import SmartSearch from '../components/SmartSearch';
 import useChatSocket from '../hooks/useChatSocket';
 import useReadReceipts from '../hooks/useReadReceipts';
 import useImageUpload from '../hooks/useImageUpload';
@@ -31,6 +32,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
   const [typingUser, setTypingUser] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [showOtherUserModal, setShowOtherUserModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState(false);
   // Theme (light / dark) - sync from localStorage
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
@@ -740,6 +742,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
           theme={theme}
           availableUsers={availableUsers}
           setShowOtherUserModal={setShowOtherUserModal}
+          setShowSearchModal={setShowSearchModal}
           user={user}
           messages={messages}
           colors={colors}
@@ -797,6 +800,59 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
         </div>
 
       {/* Modern User Selection Modal */}
+      {/* Smart Search Modal */}
+      {showSearchModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            background: colors.chatBg,
+            borderRadius: '12px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            position: 'relative'
+          }}>
+            <button
+              onClick={() => setShowSearchModal(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'transparent',
+                border: 'none',
+                fontSize: '24px',
+                cursor: 'pointer',
+                color: colors.headerText,
+                zIndex: 1
+              }}
+            >
+              ×
+            </button>
+            <SmartSearch
+              conversationId={conversationId}
+              onResultClick={(msg) => {
+                console.log('Selected message:', msg);
+                setShowSearchModal(false);
+                // Scroll to message if needed
+                scrollToBottom();
+              }}
+              darkMode={theme === 'dark'}
+            />
+          </div>
+        </div>
+      )}
+
       <UserSelectModal
         show={showOtherUserModal}
         onClose={() => setShowOtherUserModal(false)}

@@ -12,7 +12,14 @@ export default function AudioMessage({ message, mine }) {
 
   useEffect(() => {
     const loadAudio = async () => {
-      if (!message.content || message.temporary) {
+      if (!message.content) {
+        setError(true);
+        setLoading(false);
+        return;
+      }
+
+      if (message.temporary) {
+        // For temporary messages, use content URL directly (blob URL from socket)
         setAudioUrl(message.content);
         setLoading(false);
         return;
@@ -23,6 +30,8 @@ export default function AudioMessage({ message, mine }) {
         setError(false);
         const urlParts = message.content.split('/');
         const mediaId = urlParts[urlParts.length - 1].split('?')[0];
+        console.log('AudioMessage: Loading audio with mediaId:', mediaId);
+        
         const authenticatedBlobUrl = await loadAuthenticatedMedia(message.content, mediaId);
         setAudioUrl(authenticatedBlobUrl);
         setLoading(false);
@@ -166,6 +175,15 @@ export default function AudioMessage({ message, mine }) {
 
           {audioUrl && (
             <audio ref={audioRef} src={audioUrl} preload="metadata" style={{ display: 'none' }} />
+          )}
+          
+          {/* Display transcript if available */}
+          {message.metadata?.transcript && (
+            <div className={`mt-3 px-3 py-2 rounded-lg text-sm italic ${
+              mine ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-700'
+            }`} style={{ borderLeft: mine ? '3px solid #6366f1' : '3px solid #9ca3af' }}>
+              💬 "{message.metadata.transcript}"
+            </div>
           )}
         </div>
       </div>
