@@ -16,9 +16,11 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
     console.log('  Original URL:', mediaUrl);
     console.log('  Media ID:', mediaId);
     
-    // IMPORTANT: Always use relative paths for API calls
-    // The proxy will handle routing to the correct backend
-    let apiUrl = '/api/media/file/' + mediaId;
+    // IMPORTANT:
+    // - In development, the CRA proxy handles relative `/api/*` paths
+    // - In production (Vercel), we must call the Render backend URL
+    const baseApi = process.env.REACT_APP_API_URL || '';
+    let apiUrl = `${baseApi}/api/media/file/${mediaId}`.replace(/([^:]?)\/\//g, '$1/');
     
     console.log('  Using relative URL:', apiUrl);
     
@@ -39,7 +41,10 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'audio/*,image/*'
-        }
+        },
+        mode: 'cors',
+        cache: 'no-store',
+        credentials: 'omit'
       });
       
       console.log('  Response status:', headerResponse.status);
@@ -68,7 +73,10 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
       method: 'GET',
       headers: {
         'Accept': 'audio/*,image/*'
-      }
+      },
+      mode: 'cors',
+      cache: 'no-store',
+      credentials: 'omit'
     });
     
     console.log('  Response status:', queryResponse.status);

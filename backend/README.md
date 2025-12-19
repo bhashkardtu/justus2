@@ -141,7 +141,7 @@ NODE_ENV=development
 MONGODB_URI=mongodb://localhost:27017/justus
 
 # JWT Configuration
-JWT_SECRET=justus-secure-key-for-jwt-token-signature-validation-2025
+JWT_SECRET=<generate-a-strong-random-secret>
 JWT_EXPIRES_IN=24h
 
 # CORS
