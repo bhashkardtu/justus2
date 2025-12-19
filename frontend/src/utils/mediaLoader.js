@@ -18,11 +18,18 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
     
     // IMPORTANT:
     // - In development, the CRA proxy handles relative `/api/*` paths
-    // - In production (Vercel), we must call the Render backend URL
+    // - In production (Vercel), we must call the Render backend URL with absolute URL
     const baseApi = process.env.REACT_APP_API_URL || '';
-    let apiUrl = `${baseApi}/api/media/file/${mediaId}`.replace(/([^:]?)\/\//g, '$1/');
+    let apiUrl;
+    if (baseApi && baseApi.startsWith('http')) {
+      // Production: use absolute URL
+      apiUrl = `${baseApi}/api/media/file/${mediaId}`;
+    } else {
+      // Development: use relative URL (proxy handles it)
+      apiUrl = `/api/media/file/${mediaId}`;
+    }
     
-    console.log('  Using relative URL:', apiUrl);
+    console.log('  Using API URL:', apiUrl);
     
     // Ensure we have a token before making the request
     const token = localStorage.getItem('token');
