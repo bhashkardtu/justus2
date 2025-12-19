@@ -63,6 +63,16 @@ junit.xml
 cypress/videos/
 cypress/screenshots/
 
+# Test Files
+test-*.js
+*-test.js
+*.test.js
+*.spec.js
+**/__tests__/
+**/tests/
+test/
+tests/
+
 # =====================================
 # IDE & Editor Files
 # =====================================
