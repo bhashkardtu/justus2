@@ -63,6 +63,14 @@ junit.xml
 cypress/videos/
 cypress/screenshots/
 
+# =====================================
+# Local Roadmaps / Scratch Docs (ignored)
+# =====================================
+FUTURE_IMPROVEMENTS.md
+future-improvements.md
+docs/FUTURE_IMPROVEMENTS.md
+docs/future-improvements.md
+
 # Test Files
 test-*.js
 *-test.js

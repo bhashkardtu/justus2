@@ -17,6 +17,7 @@ import useVoiceMessage from '../hooks/useVoiceMessage';
 import useVoiceCall from '../hooks/useVoiceCall';
 import useVideoCall from '../hooks/useVideoCall';
 import useEncryption from '../hooks/useEncryption';
+import { forwardMessage } from '../services/chat';
 
 //
 
@@ -32,6 +33,8 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
   const [typingUser, setTypingUser] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [showOtherUserModal, setShowOtherUserModal] = useState(false);
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [forwardingMessage, setForwardingMessage] = useState(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState(false);
   // Theme (light / dark) - sync from localStorage
@@ -763,7 +766,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
           >
             {/* Messages container with padding for mobile/desktop */}
             <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <ChatMessages messages={messages} user={user} otherUser={otherUser} onEdit={onEdit} onDelete={onDelete} onReply={handleReply} colors={colors} />
+              <ChatMessages messages={messages} user={user} otherUser={otherUser} onEdit={onEdit} onDelete={onDelete} onReply={handleReply} onForward={(m)=>{ setForwardingMessage(m); setShowForwardModal(true); }} colors={colors} />
               <TypingIndicator typingUser={typingUser} colors={colors} />
             </div>
             
@@ -859,6 +862,32 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
         availableUsers={availableUsers}
         currentUserId={user.id}
         onSelect={(id) => selectOtherUser(id)}
+      />
+
+      {/* Forward Message Modal */}
+      <UserSelectModal
+        show={showForwardModal}
+        onClose={() => { setShowForwardModal(false); setForwardingMessage(null); }}
+        availableUsers={availableUsers}
+        currentUserId={user.id}
+        onSelect={async (targetId) => {
+          try {
+            if (!forwardingMessage) return;
+            const id = forwardingMessage.id || forwardingMessage._id;
+            const res = await forwardMessage({ messageId: id, targetUserId: targetId });
+            const newMessages = res.data?.messages || [];
+            // If forwarding to the currently open chat, append
+            if (otherUserId === targetId) {
+              setMessages(prev => [...prev, ...newMessages]);
+              setTimeout(() => scrollToBottom(), 50);
+            }
+            setShowForwardModal(false);
+            setForwardingMessage(null);
+          } catch (err) {
+            console.error('Forward failed:', err);
+            alert(err.response?.data?.message || 'Failed to forward message');
+          }
+        }}
       />
 
       {/* Voice Call Modal */}

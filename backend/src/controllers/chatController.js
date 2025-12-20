@@ -206,6 +206,85 @@ export const markMessagesAsRead = async (req, res) => {
   }
 };
 
+// Forward message(s) to another user or conversation
+export const forwardMessages = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { messageId, messageIds, targetUserId, targetConversationId } = req.body;
+
+    const ids = messageIds && Array.isArray(messageIds) ? messageIds : (messageId ? [messageId] : []);
+    if (!ids.length) {
+      return res.status(400).json({ message: 'messageId or messageIds is required' });
+    }
+
+    // Resolve target conversation
+    let conversationId = targetConversationId;
+    let receiverId = targetUserId || null;
+
+    if (!conversationId) {
+      if (!receiverId) {
+        return res.status(400).json({ message: 'Provide targetUserId or targetConversationId' });
+      }
+      const a = userId;
+      const b = receiverId;
+      const key = a <= b ? `${a}:${b}` : `${b}:${a}`;
+      let conversation = await Conversation.findOne({ key });
+      if (!conversation) {
+        conversation = new Conversation({ participantA: a, participantB: b, key });
+        conversation = await conversation.save();
+      }
+      conversationId = conversation._id.toString();
+    }
+
+    // If receiverId not supplied, infer from conversation participants
+    if (!receiverId && conversationId) {
+      const conv = await Conversation.findById(conversationId);
+      if (!conv) {
+        return res.status(404).json({ message: 'Target conversation not found' });
+      }
+      receiverId = conv.participantA === userId ? conv.participantB : conv.participantA;
+    }
+
+    const originals = await Message.find({ _id: { $in: ids } });
+    if (!originals.length) {
+      return res.status(404).json({ message: 'Original message(s) not found' });
+    }
+
+    const forwarded = [];
+    for (const orig of originals) {
+      const newMsg = new Message({
+        senderId: userId,
+        receiverId,
+        conversationId,
+        type: orig.type,
+        content: orig.content,
+        encryptionNonce: orig.encryptionNonce || null,
+        metadata: {
+          ...(orig.metadata || {}),
+          forwardedFrom: {
+            messageId: orig._id.toString(),
+            senderId: orig.senderId,
+            timestamp: orig.timestamp || orig.createdAt,
+          },
+        },
+        replyTo: null,
+        timestamp: new Date(),
+        delivered: true,
+        deliveredAt: new Date(),
+      });
+
+      const saved = await newMsg.save();
+      const dto = await messageService.convertToDTO(saved);
+      forwarded.push(dto);
+    }
+
+    return res.json({ success: true, messages: forwarded });
+  } catch (error) {
+    console.error('Forward messages error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Debug endpoints
 export const createTestMessage = async (req, res) => {
   console.log('=== CREATING TEST MESSAGE ===');

@@ -5,7 +5,7 @@ import DocumentMessage from './DocumentMessage';
 import CallMessage from './CallMessage';
 import { fmtTime } from '../utils/format';
 
-export default function ChatMessages({ messages, user, otherUser, onEdit, onDelete, onReply, colors }) {
+export default function ChatMessages({ messages, user, otherUser, onEdit, onDelete, onReply, onForward, colors }) {
   const [showMenu, setShowMenu] = useState(null); // { messageId, x, y }
   const [hoveredMessage, setHoveredMessage] = useState(null);
 
@@ -224,6 +224,26 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
             }}
           >
             💬 Reply
+          </div>
+
+          {/* Forward Option */}
+          <div
+            style={{
+              padding: '12px 16px',
+              cursor: 'pointer',
+              background: 'transparent',
+              borderBottom: `1px solid ${colors.inputBorder || '#eee'}`,
+              color: colors.inputText || '#222',
+              transition: 'background 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.background = colors.inputBg || '#f5f5f5'}
+            onMouseLeave={(e) => e.target.style.background = 'transparent'}
+            onClick={() => {
+              if (onForward) onForward(showMenu.message);
+              handleCloseMenu();
+            }}
+          >
+            📤 Forward
           </div>
 
           {/* Edit Option (only for own text messages) */}
