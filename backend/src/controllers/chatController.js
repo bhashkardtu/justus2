@@ -2,6 +2,19 @@ import Message from '../models/Message.js';
 import Conversation from '../models/Conversation.js';
 import messageService from '../services/messageService.js';
 
+const DEFAULT_WALLPAPER = {
+  sourceType: 'none',
+  presetKey: 'aurora',
+  imageUrl: '',
+  blur: 6,
+  opacity: 0.9
+};
+
+const clampNumber = (value, min, max, fallback) => {
+  const n = Number.isFinite(Number(value)) ? Number(value) : fallback;
+  return Math.min(Math.max(n, min), max);
+};
+
 export const getMessages = async (req, res) => {
   try {
     const userId = req.userId;
@@ -324,4 +337,83 @@ export const getAllConversations = async (req, res) => {
     console.log(`Conversation ID: ${conv._id}, Key: ${conv.key}, Participants: ${conv.participantA} <-> ${conv.participantB}`);
   });
   res.json(conversations);
+};
+
+export const getWallpaper = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { conversationId } = req.query;
+
+    if (!conversationId) {
+      return res.status(400).json({ message: 'conversationId is required' });
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ message: 'Conversation not found' });
+    }
+
+    if (conversation.participantA !== userId && conversation.participantB !== userId) {
+      return res.status(403).json({ message: 'Not a participant in this conversation' });
+    }
+
+    const stored = conversation.wallpapers?.get?.(userId) || conversation.wallpapers?.[userId];
+    const response = { ...DEFAULT_WALLPAPER, ...(stored ? stored.toObject?.() || stored : {}) };
+
+    return res.json(response);
+  } catch (error) {
+    console.error('Get wallpaper error:', error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const setWallpaper = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { conversationId, sourceType, presetKey, imageUrl, blur, opacity } = req.body;
+
+    if (!conversationId) {
+      return res.status(400).json({ message: 'conversationId is required' });
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ message: 'Conversation not found' });
+    }
+
+    if (conversation.participantA !== userId && conversation.participantB !== userId) {
+      return res.status(403).json({ message: 'Not a participant in this conversation' });
+    }
+
+    const nextSettings = {
+      sourceType: ['preset', 'custom', 'none'].includes(sourceType) ? sourceType : DEFAULT_WALLPAPER.sourceType,
+      presetKey: presetKey || DEFAULT_WALLPAPER.presetKey,
+      imageUrl: imageUrl || '',
+      blur: clampNumber(blur, 0, 48, DEFAULT_WALLPAPER.blur),
+      opacity: clampNumber(opacity, 0, 1, DEFAULT_WALLPAPER.opacity)
+    };
+
+    if (nextSettings.sourceType === 'none') {
+      nextSettings.imageUrl = '';
+      nextSettings.presetKey = 'none';
+    }
+
+    if (!conversation.wallpapers) {
+      conversation.wallpapers = new Map();
+    }
+
+    // For Map compatibility whether mongoose stored as Map or plain object
+    if (typeof conversation.wallpapers.set === 'function') {
+      conversation.wallpapers.set(userId, nextSettings);
+    } else {
+      conversation.wallpapers[userId] = nextSettings;
+    }
+
+    await conversation.save();
+
+    return res.json(nextSettings);
+  } catch (error) {
+    console.error('Set wallpaper error:', error);
+    return res.status(500).json({ message: error.message });
+  }
 };

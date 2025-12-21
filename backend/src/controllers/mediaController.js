@@ -112,7 +112,16 @@ export const getFile = async (req, res) => {
     
     // Stream the file
     console.log('MediaController: Returning file:', file.filename);
+    
+    // Set CORS headers for cross-origin resource access (needed for CSS backgrounds, canvas, etc.)
+    const origin = req.headers.origin;
+    if (origin) {
+      res.set('Access-Control-Allow-Origin', origin);
+      res.set('Access-Control-Allow-Credentials', 'true');
+    }
+    
     res.set('Content-Type', file.contentType || 'application/octet-stream');
+    res.set('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
     
     const downloadStream = bucket.openDownloadStream(new mongoose.Types.ObjectId(id));
     downloadStream.pipe(res);

@@ -7,7 +7,9 @@ import {
   createTestMessage,
   getAllMessages,
   getAllConversations,
-  forwardMessages
+  forwardMessages,
+  getWallpaper,
+  setWallpaper
 } from '../controllers/chatController.js';
 import { authenticateJWT } from '../middleware/auth.js';
 
@@ -19,6 +21,8 @@ router.post('/messages', authenticateJWT, sendMessage);
 router.post('/conversation', authenticateJWT, getOrCreateConversation);
 router.post('/messages/mark-read', authenticateJWT, markMessagesAsRead);
 router.post('/messages/forward', authenticateJWT, forwardMessages);
+router.get('/wallpaper', authenticateJWT, getWallpaper);
+router.post('/wallpaper', authenticateJWT, setWallpaper);
 
 // Debug routes (consider removing in production)
 router.get('/debug/create-test-message', createTestMessage);

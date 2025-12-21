@@ -10,6 +10,7 @@ import UserSelectModal from '../components/UserSelectModal';
 import VoiceCallModal from '../components/VoiceCallModal';
 import VideoCallModal from '../components/VideoCallModal';
 import SmartSearch from '../components/SmartSearch';
+import WallpaperPanel from '../components/WallpaperPanel';
 import useChatSocket from '../hooks/useChatSocket';
 import useReadReceipts from '../hooks/useReadReceipts';
 import useImageUpload from '../hooks/useImageUpload';
@@ -18,8 +19,40 @@ import useVoiceCall from '../hooks/useVoiceCall';
 import useVideoCall from '../hooks/useVideoCall';
 import useEncryption from '../hooks/useEncryption';
 import { forwardMessage } from '../services/chat';
+import { buildWallpaperUrl, DEFAULT_WALLPAPER, fetchWallpaper, saveWallpaper } from '../services/wallpaperService';
 
-//
+const WALLPAPER_PRESETS = [
+  {
+    key: 'aurora',
+    label: 'Aurora Mist',
+    value: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)'
+  },
+  {
+    key: 'sunset',
+    label: 'Sunset Bloom',
+    value: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)'
+  },
+  {
+    key: 'noir',
+    label: 'Noir Grid',
+    value: 'linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0b1220 100%)'
+  },
+  {
+    key: 'waves',
+    label: 'Pacific Waves',
+    value: 'linear-gradient(135deg, #74ebd5 0%, #9face6 100%)'
+  },
+  {
+    key: 'dune',
+    label: 'Desert Dusk',
+    value: 'linear-gradient(135deg, #f8fafc 0%, #fee2e2 45%, #fef3c7 100%)'
+  },
+  {
+    key: 'forest',
+    label: 'Evergreen',
+    value: 'linear-gradient(135deg, #0f766e 0%, #14b8a6 50%, #22c55e 100%)'
+  }
+];
 
 export default function ChatPage({ user, onLogout, onUserUpdate }){
   const [messages, setMessages] = useState([]);
@@ -40,6 +73,11 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
   // Theme (light / dark) - sync from localStorage
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const [loading, setLoading] = useState(true);
+  const [wallpaperSettings, setWallpaperSettings] = useState(DEFAULT_WALLPAPER);
+  const [wallpaperPreview, setWallpaperPreview] = useState(DEFAULT_WALLPAPER);
+  const [wallpaperPanelOpen, setWallpaperPanelOpen] = useState(false);
+  const [savingWallpaper, setSavingWallpaper] = useState(false);
+  const [resolvedWallpaperUrl, setResolvedWallpaperUrl] = useState('');
 
   // E2EE encryption hook
   const encryption = useEncryption();
@@ -63,6 +101,14 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
     conversationId,
     setMessages
   });
+  const openWallpaperPanel = () => {
+    setWallpaperPreview(wallpaperSettings);
+    setWallpaperPanelOpen(true);
+  };
+  const closeWallpaperPanel = () => {
+    setWallpaperPreview(wallpaperSettings);
+    setWallpaperPanelOpen(false);
+  };
   const [lastTypingTime, setLastTypingTime] = useState(0);
   const [sending, setSending] = useState(false);
   const [prevMessagesLength, setPrevMessagesLength] = useState(0);
@@ -396,6 +442,47 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
     return () => { if (cleanupIntervalId) clearInterval(cleanupIntervalId); };
   }, []);
 
+  useEffect(() => {
+    const loadWallpaper = async () => {
+      if (!conversationId) return;
+      try {
+        const settings = await fetchWallpaper(conversationId);
+        const hydrated = { ...DEFAULT_WALLPAPER, ...(settings || {}) };
+        setWallpaperSettings(hydrated);
+        setWallpaperPreview(hydrated);
+      } catch (err) {
+        console.error('Failed to load wallpaper', err);
+      }
+    };
+
+    loadWallpaper();
+  }, [conversationId]);
+
+  // Resolve wallpaper URL (async for blob URLs)
+  useEffect(() => {
+    const resolveWallpaper = async () => {
+      const activePreset = WALLPAPER_PRESETS.find(p => p.key === wallpaperPreview.presetKey);
+      const rawWallpaper = wallpaperPreview.sourceType === 'preset'
+        ? activePreset?.value || ''
+        : wallpaperPreview.imageUrl;
+      
+      if (wallpaperPreview.sourceType === 'none' || !rawWallpaper) {
+        setResolvedWallpaperUrl('');
+        return;
+      }
+
+      try {
+        const resolved = await buildWallpaperUrl(rawWallpaper);
+        setResolvedWallpaperUrl(resolved || '');
+      } catch (err) {
+        console.error('Failed to resolve wallpaper URL', err);
+        setResolvedWallpaperUrl('');
+      }
+    };
+
+    resolveWallpaper();
+  }, [wallpaperPreview]);
+
   // Read receipts via hook
   const { markMessagesAsRead } = useReadReceipts(conversationId, messages);
 
@@ -612,6 +699,55 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
   const cancelReply = () => {
     setReplyingTo(null);
   }
+
+  const applyAndSaveWallpaper = async (nextSettings = wallpaperSettings) => {
+    if (!conversationId) {
+      alert('Conversation not ready yet');
+      return;
+    }
+    const safeSettings = { ...DEFAULT_WALLPAPER, ...(nextSettings || {}) };
+    setSavingWallpaper(true);
+    try {
+      setWallpaperSettings(safeSettings);
+      setWallpaperPreview(safeSettings);
+      await saveWallpaper(conversationId, safeSettings);
+      setWallpaperPanelOpen(false);
+    } catch (err) {
+      console.error('Failed to save wallpaper', err);
+      alert(err.response?.data?.message || 'Could not save wallpaper');
+    } finally {
+      setSavingWallpaper(false);
+    }
+  };
+
+  const handleWallpaperUpload = async (file) => {
+    if (!file || !conversationId) {
+      alert('Conversation not ready yet');
+      return;
+    }
+    setSavingWallpaper(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('conversationId', conversationId);
+
+      const authenticatedApi = getAuthenticatedApi();
+      const res = await authenticatedApi.post('/api/media/upload', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      const path = `/api/media/file/${res.data.id}`;
+      const next = { ...wallpaperSettings, sourceType: 'custom', imageUrl: path };
+      setWallpaperSettings(next);
+      setWallpaperPreview(next);
+      await saveWallpaper(conversationId, next);
+    } catch (err) {
+      console.error('Wallpaper upload failed', err);
+      alert(err.response?.data?.message || 'Failed to upload wallpaper');
+    } finally {
+      setSavingWallpaper(false);
+    }
+  };
   
   const onDelete = async (m) => { 
     if (!window.confirm('Are you sure you want to delete this message?')) {
@@ -731,6 +867,9 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
     sendBtn: darkMode ? '#00a884' : '#25d366',
   };
 
+  const wallpaperIsGradient = resolvedWallpaperUrl && (resolvedWallpaperUrl.startsWith('linear-gradient') || resolvedWallpaperUrl.startsWith('radial-gradient'));
+  const wallpaperActive = wallpaperSettings.sourceType !== 'none' && Boolean(resolvedWallpaperUrl);
+
   return (
     <div style={{ background: colors.bg, minHeight: '100vh' }}>
       {/* WhatsApp-style chat container */}
@@ -756,16 +895,34 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
           otherUserOnline={otherUserOnline}
           onLogout={onLogout}
           onAvatarUpdate={handleAvatarUpdate}
+          onOpenWallpaper={openWallpaperPanel}
+          wallpaperActive={wallpaperActive}
         />
 
           {/* Modern Messages Area */}
           <div 
             ref={chatContainerRef}
             onScroll={handleScroll}
-            style={{ flex: 1, overflowY: 'auto', background: colors.bg, position: 'relative' }}
+            style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: colors.bg, position: 'relative' }}
           >
+            {wallpaperActive && resolvedWallpaperUrl && (
+              <div
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundImage: wallpaperIsGradient ? resolvedWallpaperUrl : `url(${resolvedWallpaperUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  filter: `blur(${wallpaperPreview.blur || 0}px)`,
+                  opacity: wallpaperPreview.opacity ?? 0.9,
+                  transition: 'opacity 0.2s ease, filter 0.2s ease',
+                  zIndex: 0
+                }}
+              />
+            )}
             {/* Messages container with padding for mobile/desktop */}
-            <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', zIndex: 1 }}>
               <ChatMessages messages={messages} user={user} otherUser={otherUser} onEdit={onEdit} onDelete={onDelete} onReply={handleReply} onForward={(m)=>{ setForwardingMessage(m); setShowForwardModal(true); }} colors={colors} />
               <TypingIndicator typingUser={typingUser} colors={colors} />
             </div>
@@ -801,6 +958,18 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
             currentUserId={user.id}
           />
         </div>
+
+        <WallpaperPanel
+          open={wallpaperPanelOpen}
+          onClose={closeWallpaperPanel}
+          presets={WALLPAPER_PRESETS}
+          value={wallpaperPreview}
+          onChange={(next) => setWallpaperPreview(next)}
+          onSave={applyAndSaveWallpaper}
+          onReset={() => applyAndSaveWallpaper(DEFAULT_WALLPAPER)}
+          onUpload={handleWallpaperUpload}
+          saving={savingWallpaper}
+        />
 
       {/* Modern User Selection Modal */}
       {/* Smart Search Modal */}

@@ -20,7 +20,9 @@ export default function ChatHeader({
   videoCallState,
   otherUserOnline,
   onLogout,
-  onAvatarUpdate
+  onAvatarUpdate,
+  onOpenWallpaper,
+  wallpaperActive
 }) {
   // Highlight the Contacts button for first-time users
   const [showContactsHint, setShowContactsHint] = React.useState(() => !localStorage.getItem('contacts_hint_dismissed'));
@@ -108,6 +110,34 @@ export default function ChatHeader({
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '20px', height: '20px' }}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+        </button>
+      )}
+
+      {/* Wallpaper Button */}
+      {otherUser && (
+        <button
+          onClick={onOpenWallpaper}
+          style={{
+            padding: '8px',
+            borderRadius: '50%',
+            background: 'rgba(255, 255, 255, 0.1)',
+            border: wallpaperActive ? '1px solid #38bdf8' : 'none',
+            color: colors.headerText,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: wallpaperActive ? '0 0 0 4px rgba(56,189,248,0.18)' : 'none'
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+          title="Chat wallpaper"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '20px', height: '20px' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25v13.5A2.25 2.25 0 0118.75 21H5.25A2.25 2.25 0 013 18.75V5.25z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5l4.477-4.477a.75.75 0 011.06 0L15 18l2.523-2.523a.75.75 0 011.06 0L21 18M3 7.5h.008v.008H3V7.5zm3.75 0h.008v.008H6.75V7.5zm3.75 0h.008v.008h-.008V7.5z" />
           </svg>
         </button>
       )}
