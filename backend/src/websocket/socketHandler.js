@@ -4,6 +4,7 @@ import Conversation from '../models/Conversation.js';
 import messageService from '../services/messageService.js';
 import CryptoService from '../services/cryptoService.js';
 import User from '../models/User.js';
+import botService from '../services/botService.js';
 
 export const configureSocketIO = (io) => {
   // Authentication middleware for Socket.IO
@@ -138,6 +139,16 @@ export const configureSocketIO = (io) => {
           messageData.conversationId = conversation._id.toString();
         }
         
+        // Process translation
+        // If we have plaintext (from E2EE client) or regular content
+        const textForTranslation = incoming.plaintext || (!incoming.ciphertext ? incoming.content : null);
+        
+        console.log('[Backend] Text for translation:', textForTranslation ? 'Present' : 'None');
+
+        if (textForTranslation && incoming.type === 'text') {
+          await messageService.processMessageTranslation(messageData, textForTranslation);
+        }
+        
         console.log('Saving message to database...');
         const message = new Message(messageData);
         const saved = await message.save();
@@ -151,6 +162,12 @@ export const configureSocketIO = (io) => {
         // Convert to DTO with user information
         const messageDTO = await messageService.convertToDTO(saved);
         
+        console.log('[Backend] Broadcasting DTO:', {
+          id: messageDTO.id,
+          translatedText: messageDTO.translatedText,
+          translatedLanguage: messageDTO.translatedLanguage
+        });
+
         // Send to both sender and receiver
         console.log('Broadcasting message to sender: user:' + userId);
         io.to(`user:${userId}`).emit('message', messageDTO);
@@ -159,6 +176,13 @@ export const configureSocketIO = (io) => {
         io.to(`user:${incoming.receiverId}`).emit('message', messageDTO);
         
         console.log('=== MESSAGE PROCESSING COMPLETE ===');
+        
+        // Check if this is a bot command
+        if (incoming.content && botService.isBotCommand(incoming.content)) {
+          console.log('Bot command detected, processing...');
+          handleBotMessage(io, socket, incoming, saved);
+        }
+        
       } catch (error) {
         console.error('Error handling chat.send:', error);
         socket.emit('error', { message: error.message });
@@ -396,3 +420,85 @@ export const configureSocketIO = (io) => {
     });
   });
 };
+
+/**
+ * Handle bot messages - process and respond to bot commands
+ */
+async function handleBotMessage(io, socket, incoming, userMessage) {
+  try {
+    const userId = socket.userId;
+    const conversationId = userMessage.conversationId;
+    
+    console.log('Processing bot command:', incoming.content);
+    
+    // Get recent conversation context
+    const recentMessages = await Message.find({ conversationId })
+      .sort({ timestamp: -1 })
+      .limit(10)
+      .select('senderId content timestamp isBot')
+      .lean();
+    
+    const context = {
+      recentMessages: recentMessages.reverse().map(msg => ({
+        sender: msg.isBot ? 'Bot' : 'User',
+        text: msg.content,
+        timestamp: msg.timestamp
+      })),
+      userId,
+      conversationId
+    };
+    
+    // Process through bot service
+    const botResponse = await botService.handleBotMessage(incoming.content, context);
+    
+    if (botResponse.success && botResponse.response) {
+      // Create bot message
+      const botMessageData = {
+        senderId: 'bot',
+        receiverId: userId,
+        conversationId: conversationId,
+        type: 'text',
+        content: botResponse.response,
+        isBot: true,
+        timestamp: new Date(),
+        delivered: true,
+        deliveredAt: new Date()
+      };
+      
+      const botMessage = new Message(botMessageData);
+      const savedBotMessage = await botMessage.save();
+      
+      // Convert to DTO
+      const botMessageDTO = await messageService.convertToDTO(savedBotMessage);
+      
+      // Emit bot response to user
+      console.log('Sending bot response to user:', userId);
+      io.to(`user:${userId}`).emit('message', botMessageDTO);
+      
+      // Also emit to the receiver if this is a group conversation
+      if (incoming.receiverId && incoming.receiverId !== userId) {
+        io.to(`user:${incoming.receiverId}`).emit('message', botMessageDTO);
+      }
+    } else {
+      console.error('Bot service error:', botResponse.error);
+      // Send error message as bot response
+      const errorMessage = new Message({
+        senderId: 'bot',
+        receiverId: userId,
+        conversationId: conversationId,
+        type: 'text',
+        content: botResponse.response || 'Sorry, I encountered an error.',
+        isBot: true,
+        timestamp: new Date()
+      });
+      
+      const saved = await errorMessage.save();
+      const dto = await messageService.convertToDTO(saved);
+      io.to(`user:${userId}`).emit('message', dto);
+    }
+  } catch (error) {
+    console.error('Error in handleBotMessage:', error);
+    // Don't emit error to avoid disrupting user experience
+  }
+}
+

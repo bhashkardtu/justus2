@@ -48,6 +48,15 @@ export default function useChatSocket({
 
     // Real messages
     if (message.id && !message.temporary) {
+      console.log('[Frontend] Received Socket Message:', {
+        id: message.id,
+        type: message.type,
+        content: message.content,
+        translatedText: message.translatedText,
+        translatedLanguage: message.translatedLanguage,
+        originalLanguage: message.originalLanguage
+      });
+
       setMessages(prev => {
         const filtered = prev.filter(msg => {
           if (!msg.temporary) return true;

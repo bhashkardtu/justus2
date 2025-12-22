@@ -26,6 +26,23 @@ const messageSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // Translation fields
+  originalLanguage: {
+    type: String,
+    default: null
+  },
+  translatedText: {
+    type: String,
+    default: null
+  },
+  translatedLanguage: {
+    type: String,
+    default: null
+  },
+  showOriginal: {
+    type: Boolean,
+    default: false
+  },
   // Encryption: nonce used for decryption (stored plaintext, not secret)
   encryptionNonce: {
     type: String,
@@ -72,6 +89,19 @@ const messageSchema = new mongoose.Schema({
   },
   readAt: {
     type: Date,
+    default: null
+  },
+  // Bot message fields
+  isBot: {
+    type: Boolean,
+    default: false
+  },
+  isBotQuery: {
+    type: Boolean,
+    default: false
+  },
+  botContext: {
+    type: mongoose.Schema.Types.Mixed,
     default: null
   }
 }, {

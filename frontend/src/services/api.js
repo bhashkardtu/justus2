@@ -21,6 +21,29 @@ api.interceptors.request.use(
     }
 );
 
+// Add response interceptor to handle 401 errors (expired/invalid token)
+api.interceptors.response.use(
+    (response) => {
+        return response;
+    },
+    (error) => {
+        // Check if the error is a 401 Unauthorized
+        if (error.response && error.response.status === 401) {
+            console.log('401 Unauthorized - Token expired or invalid, redirecting to sign in');
+            
+            // Clear authentication data
+            localStorage.removeItem('token');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('username');
+            delete api.defaults.headers.common['Authorization'];
+            
+            // Redirect to sign in page
+            window.location.href = '/signin';
+        }
+        return Promise.reject(error);
+    }
+);
+
 // Create a function to get a new axios instance with the current token
 export function getAuthenticatedApi() {
     const token = localStorage.getItem('token');
@@ -33,6 +56,21 @@ export function getAuthenticatedApi() {
         authenticatedApi.defaults.headers.common['Authorization'] = 'Bearer ' + token;
         console.log('Created authenticated API instance with token');
     }
+    
+    // Add 401 response interceptor to this instance too
+    authenticatedApi.interceptors.response.use(
+        (response) => response,
+        (error) => {
+            if (error.response && error.response.status === 401) {
+                console.log('401 Unauthorized - Token expired or invalid, redirecting to sign in');
+                localStorage.removeItem('token');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('username');
+                window.location.href = '/signin';
+            }
+            return Promise.reject(error);
+        }
+    );
     
     return authenticatedApi;
 }

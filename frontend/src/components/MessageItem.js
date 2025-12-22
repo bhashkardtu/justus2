@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { loadAuthenticatedMedia } from '../utils/mediaLoader';
+import BotMessage from './BotMessage';
 
 export default function MessageItem({ me, m, onEdit, onDelete }) {
+  // Check if this is a bot message
+  if (m.isBot || m.senderId === 'bot') {
+    return <BotMessage message={m} />;
+  }
+  
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
@@ -10,6 +16,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
   const mine = me === m.senderId;
   const isTemporary = m.temporary === true;
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false);
   const menuRef = useRef(null);
   const triggerRef = useRef(null);
   
@@ -89,6 +96,16 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
       minute: '2-digit' 
     });
   };
+
+  // Debug log for rendering
+  console.log(`[Frontend] Rendering MessageItem ${m.id}:`, {
+    content: m.content,
+    translatedText: m.translatedText,
+    mine,
+    me,
+    senderId: m.senderId,
+    showOriginal
+  });
 
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'} mb-3`}>
@@ -183,7 +200,29 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
               <>
                 {m.type === 'text' && (
                   <div className="whitespace-pre-wrap break-words leading-relaxed font-medium">
-                    {m.content}
+                    {m.translatedText ? (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-2 mb-1 border-b border-white/10 pb-1">
+                          <span className="text-[10px] uppercase tracking-wider opacity-70 font-bold">
+                            {showOriginal ? 'Original' : 'Translated'}
+                          </span>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowOriginal(!showOriginal);
+                            }}
+                            className="text-[10px] underline opacity-70 hover:opacity-100 transition-opacity"
+                          >
+                            {showOriginal ? 'Show Translation' : 'Show Original'}
+                          </button>
+                        </div>
+                        <div className="text-base">
+                          {showOriginal ? m.content : m.translatedText}
+                        </div>
+                      </div>
+                    ) : (
+                      m.content
+                    )}
                   </div>
                 )}
                 

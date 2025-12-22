@@ -61,6 +61,18 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
         
+        // Handle 401 Unauthorized - Token expired or invalid
+        if (error.response && error.response.status === 401) {
+            console.log('401 Unauthorized - Token expired or invalid, redirecting to sign in');
+            localStorage.removeItem('token');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('username');
+            delete api.defaults.headers.common['Authorization'];
+            cache.clear(); // Clear cache on logout
+            window.location.href = '/signin';
+            return Promise.reject(error);
+        }
+        
         // Retry logic for network errors
         if (!error.response && !originalRequest._retry && originalRequest._retryCount < 3) {
             originalRequest._retry = true;
@@ -86,6 +98,22 @@ export function getAuthenticatedApi() {
     if (token) {
         authenticatedApi.defaults.headers.common['Authorization'] = 'Bearer ' + token;
     }
+    
+    // Add 401 response interceptor to this instance too
+    authenticatedApi.interceptors.response.use(
+        (response) => response,
+        (error) => {
+            if (error.response && error.response.status === 401) {
+                console.log('401 Unauthorized - Token expired or invalid, redirecting to sign in');
+                localStorage.removeItem('token');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('username');
+                cache.clear();
+                window.location.href = '/signin';
+            }
+            return Promise.reject(error);
+        }
+    );
     
     return authenticatedApi;
 }

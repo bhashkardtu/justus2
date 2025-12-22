@@ -38,7 +38,6 @@ export const logger = {
 if (!isDevelopment) {
   const noop = () => {};
   
-  // Only keep console.error for critical issues
   window.console.log = noop;
   window.console.info = noop;
   window.console.warn = noop;

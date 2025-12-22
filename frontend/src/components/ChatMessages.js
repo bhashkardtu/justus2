@@ -8,6 +8,14 @@ import { fmtTime } from '../utils/format';
 export default function ChatMessages({ messages, user, otherUser, onEdit, onDelete, onReply, onForward, colors }) {
   const [showMenu, setShowMenu] = useState(null); // { messageId, x, y }
   const [hoveredMessage, setHoveredMessage] = useState(null);
+  const [showOriginalMap, setShowOriginalMap] = useState({});
+
+  const toggleShowOriginal = (msgId) => {
+    setShowOriginalMap(prev => ({
+      ...prev,
+      [msgId]: !prev[msgId]
+    }));
+  };
 
   const renderReplyTo = (replyTo, allMessages) => {
     if (!replyTo) return null;
@@ -141,7 +149,28 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
             >
               {msg.replyTo && renderReplyTo(msg.replyTo, messages)}
               {msg.type === 'text' && (
-                <span style={{ whiteSpace: 'pre-line' }}>{msg.content}</span>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                   {msg.translatedText && !isOwn ? (
+                     <>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '2px' }}>
+                         <span style={{ fontSize: '10px', opacity: 0.8, fontWeight: 'bold', textTransform: 'uppercase' }}>
+                           {showOriginalMap[msg.id] ? 'Original' : 'Translated'}
+                         </span>
+                         <button 
+                           onClick={(e) => { e.stopPropagation(); toggleShowOriginal(msg.id); }}
+                           style={{ background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', fontSize: '10px', cursor: 'pointer', padding: 0, opacity: 0.8 }}
+                         >
+                           {showOriginalMap[msg.id] ? 'Show Translation' : 'Show Original'}
+                         </button>
+                       </div>
+                       <span style={{ whiteSpace: 'pre-line' }}>
+                         {showOriginalMap[msg.id] ? msg.content : msg.translatedText}
+                       </span>
+                     </>
+                   ) : (
+                     <span style={{ whiteSpace: 'pre-line' }}>{msg.content}</span>
+                   )}
+                </div>
               )}
               {msg.type === 'image' && <ImageMessage message={msg} />}
               {msg.type === 'audio' && <AudioMessage message={msg} />}

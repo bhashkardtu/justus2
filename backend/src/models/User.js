@@ -46,6 +46,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     sparse: true
   },
+  preferredLanguage: {
+    type: String,
+    default: 'en',
+    enum: ['en', 'hi', 'ta', 'te', 'bn', 'mr', 'gu', 'kn', 'ml', 'pa', 'ur', 'od', 'as']
+  },
   encryptedSecretKey: {
     type: String,
     sparse: true

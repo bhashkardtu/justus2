@@ -1,10 +1,52 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { uploadAvatar, getAvatarUrl } from '../services/avatarService';
+import { updateProfile } from '../services/auth';
 
-export default function ProfileModal({ show, onClose, user, onAvatarUpdate }) {
+const LANGUAGES = [
+  { code: 'en', name: 'English' },
+  { code: 'hi', name: 'Hindi (हिंदी)' },
+  { code: 'ta', name: 'Tamil (தமிழ்)' },
+  { code: 'te', name: 'Telugu (తెలుగు)' },
+  { code: 'bn', name: 'Bengali (বাংলা)' },
+  { code: 'mr', name: 'Marathi (मराठी)' },
+  { code: 'gu', name: 'Gujarati (ગુજરાતી)' },
+  { code: 'kn', name: 'Kannada (ಕನ್ನಡ)' },
+  { code: 'ml', name: 'Malayalam (മലയാളം)' },
+  { code: 'pa', name: 'Punjabi (ਪੰਜਾਬੀ)' },
+  { code: 'ur', name: 'Urdu (اردو)' },
+  { code: 'od', name: 'Odia (ଓଡ଼ିଆ)' },
+  { code: 'as', name: 'Assamese (অসমীয়া)' }
+];
+
+export default function ProfileModal({ show, onClose, user, onAvatarUpdate, onProfileUpdate, theme }) {
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [displayName, setDisplayName] = useState('');
+  const [preferredLanguage, setPreferredLanguage] = useState('en');
   const fileInputRef = useRef(null);
+
+  const isDark = theme === 'dark';
+
+  // Theme-based styles
+  const styles = {
+    modalBg: isDark ? 'bg-[#1f2c33] border-gray-700' : 'bg-white border-gray-200',
+    textPrimary: isDark ? 'text-gray-100' : 'text-gray-900',
+    textSecondary: isDark ? 'text-gray-400' : 'text-gray-500',
+    inputBg: isDark ? 'bg-[#2a3942]' : 'bg-white',
+    inputText: isDark ? 'text-gray-100' : 'text-gray-900',
+    inputBorder: isDark ? 'border-gray-600' : 'border-gray-300',
+    disabledInputBg: isDark ? 'bg-[#111b21]' : 'bg-gray-50',
+    disabledInputText: isDark ? 'text-gray-400' : 'text-gray-500',
+    cancelBtn: isDark ? 'bg-[#2a3942] hover:bg-[#374248] text-gray-200' : 'bg-gray-100 hover:bg-gray-200 text-gray-800',
+  };
+
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.displayName || '');
+      setPreferredLanguage(user.preferredLanguage || 'en');
+    }
+  }, [user]);
 
   if (!show) return null;
 
@@ -56,14 +98,36 @@ export default function ProfileModal({ show, onClose, user, onAvatarUpdate }) {
     }
   };
 
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      const updatedUser = await updateProfile({
+        displayName,
+        preferredLanguage
+      });
+      
+      if (onProfileUpdate) {
+        onProfileUpdate(updatedUser.user);
+      }
+      
+      alert('Profile updated successfully!');
+      onClose();
+    } catch (error) {
+      console.error('Profile update failed:', error);
+      alert('Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const currentAvatarUrl = previewUrl || getAvatarUrl(user?.avatarUrl) || `https://ui-avatars.com/api/?name=${user?.displayName || user?.username || 'User'}&size=200`;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-gray-200 animate-in zoom-in-95 duration-300">
+      <div className={`${styles.modalBg} rounded-2xl p-6 w-full max-w-md shadow-2xl border animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto`}>
         <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Profile Settings</h3>
-          <p className="text-gray-500 text-sm">Manage your profile picture and information</p>
+          <h3 className={`text-xl font-bold ${styles.textPrimary} mb-2`}>Profile Settings</h3>
+          <p className={`${styles.textSecondary} text-sm`}>Manage your profile picture and information</p>
         </div>
 
         {/* Avatar Preview */}
@@ -99,31 +163,74 @@ export default function ProfileModal({ show, onClose, user, onAvatarUpdate }) {
             onChange={handleFileSelect}
             className="hidden"
           />
-          <p className="text-xs text-gray-500 mt-2">JPG, PNG or GIF • Max 5MB</p>
+          <p className={`text-xs ${styles.textSecondary} mt-2`}>JPG, PNG or GIF • Max 5MB</p>
         </div>
 
-        {/* User Info */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-3">
+        {/* User Info Form */}
+        <div className="space-y-4 mb-6">
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase">Display Name</label>
-            <p className="text-gray-900 font-medium">{user?.displayName || 'N/A'}</p>
+            <label className={`block text-sm font-medium ${styles.textSecondary} mb-1`}>Display Name</label>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className={`w-full px-3 py-2 border ${styles.inputBorder} rounded-lg focus:ring-indigo-500 focus:border-indigo-500 ${styles.inputBg} ${styles.inputText}`}
+              placeholder="Enter your display name"
+            />
           </div>
+
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase">Username</label>
-            <p className="text-gray-900 font-medium">{user?.username || 'N/A'}</p>
+            <label className={`block text-sm font-medium ${styles.textSecondary} mb-1`}>Preferred Language</label>
+            <select
+              value={preferredLanguage}
+              onChange={(e) => setPreferredLanguage(e.target.value)}
+              className={`w-full px-3 py-2 border ${styles.inputBorder} rounded-lg focus:ring-indigo-500 focus:border-indigo-500 ${styles.inputBg} ${styles.inputText}`}
+            >
+              {LANGUAGES.map(lang => (
+                <option key={lang.code} value={lang.code} className={isDark ? 'bg-gray-800 text-white' : ''}>
+                  {lang.name}
+                </option>
+              ))}
+            </select>
+            <p className={`text-xs ${styles.textSecondary} mt-1`}>Messages will be translated to this language automatically.</p>
           </div>
+
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase">Email</label>
-            <p className="text-gray-900 font-medium">{user?.email || 'N/A'}</p>
+            <label className={`block text-sm font-medium ${styles.textSecondary} mb-1`}>Username</label>
+            <input
+              type="text"
+              value={user?.username || ''}
+              disabled
+              className={`w-full px-3 py-2 border ${styles.inputBorder} rounded-lg ${styles.disabledInputBg} ${styles.disabledInputText}`}
+            />
+          </div>
+
+          <div>
+            <label className={`block text-sm font-medium ${styles.textSecondary} mb-1`}>Email</label>
+            <input
+              type="text"
+              value={user?.email || ''}
+              disabled
+              className={`w-full px-3 py-2 border ${styles.inputBorder} rounded-lg ${styles.disabledInputBg} ${styles.disabledInputText}`}
+            />
           </div>
         </div>
 
-        <button 
-          onClick={onClose}
-          className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-xl transition-colors duration-200 font-medium"
-        >
-          Close
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={onClose}
+            className={`flex-1 ${styles.cancelBtn} py-3 rounded-xl transition-colors duration-200 font-medium`}
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={handleSaveProfile}
+            disabled={saving}
+            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl transition-colors duration-200 font-medium disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
       </div>
     </div>
   );

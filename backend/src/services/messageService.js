@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import geminiService from './geminiService.js';
 
 export class MessageService {
   async convertToDTO(message) {
@@ -19,7 +20,14 @@ export class MessageService {
       delivered: message.delivered,
       deliveredAt: message.deliveredAt,
       read: message.read,
-      readAt: message.readAt
+      readAt: message.readAt,
+      isBot: message.isBot || false,
+      isBotQuery: message.isBotQuery || false,
+      // Translation fields
+      originalLanguage: message.originalLanguage,
+      translatedText: message.translatedText,
+      translatedLanguage: message.translatedLanguage,
+      showOriginal: message.showOriginal
     };
     
     // If message exists in database but doesn't have delivered flag set,
@@ -29,21 +37,25 @@ export class MessageService {
       dto.deliveredAt = message.timestamp || new Date();
     }
     
-    // Fetch sender information
-    if (message.senderId) {
+    // Fetch sender information (skip for bot messages)
+    if (message.senderId && message.senderId !== 'bot') {
       const sender = await User.findById(message.senderId);
       if (sender) {
         dto.senderUsername = sender.username;
         dto.senderDisplayName = sender.displayName;
       }
+    } else if (message.senderId === 'bot') {
+      // Set bot display information
+      dto.senderUsername = 'bot';
+      dto.senderDisplayName = 'Bot Assistant';
     }
     
     return dto;
   }
   
   async convertToDTOs(messages) {
-    // Get all unique sender IDs
-    const senderIds = [...new Set(messages.map(msg => msg.senderId))];
+    // Get all unique sender IDs (exclude 'bot')
+    const senderIds = [...new Set(messages.map(msg => msg.senderId).filter(id => id !== 'bot'))];
     
     // Fetch all users in batch for efficiency
     const users = await User.find({ _id: { $in: senderIds } });
@@ -68,7 +80,14 @@ export class MessageService {
         delivered: message.delivered,
         deliveredAt: message.deliveredAt,
         read: message.read,
-        readAt: message.readAt
+        readAt: message.readAt,
+        isBot: message.isBot || false,
+        isBotQuery: message.isBotQuery || false,
+        // Translation fields
+        originalLanguage: message.originalLanguage,
+        translatedText: message.translatedText,
+        translatedLanguage: message.translatedLanguage,
+        showOriginal: message.showOriginal
       };
       
       // If message exists in database but doesn't have delivered flag set,
@@ -78,14 +97,79 @@ export class MessageService {
         dto.deliveredAt = message.timestamp || new Date();
       }
       
-      const sender = userMap.get(message.senderId);
-      if (sender) {
-        dto.senderUsername = sender.username;
-        dto.senderDisplayName = sender.displayName;
+      // Handle bot messages specially
+      if (message.senderId === 'bot') {
+        dto.senderUsername = 'bot';
+        dto.senderDisplayName = 'Bot Assistant';
+      } else {
+        const sender = userMap.get(message.senderId);
+        if (sender) {
+          dto.senderUsername = sender.username;
+          dto.senderDisplayName = sender.displayName;
+        }
       }
       
       return dto;
     });
+  }
+
+  async processMessageTranslation(messageData, textOverride = null) {
+    try {
+      const contentToTranslate = textOverride || messageData.content;
+
+      console.log('[Translation] Processing message:', { 
+        contentLength: contentToTranslate?.length, 
+        type: messageData.type,
+        senderId: messageData.senderId,
+        receiverId: messageData.receiverId,
+        hasOverride: !!textOverride
+      });
+
+      // Skip if no content or not text
+      if (!contentToTranslate || messageData.type !== 'text') {
+        console.log('[Translation] Skipped: Not text or empty content');
+        return messageData;
+      }
+
+      // Get sender and receiver
+      const sender = await User.findById(messageData.senderId);
+      const receiver = await User.findById(messageData.receiverId);
+
+      if (!sender || !receiver) {
+        console.log('[Translation] Skipped: Sender or receiver not found');
+        return messageData;
+      }
+
+      const senderLang = sender.preferredLanguage || 'en';
+      const receiverLang = receiver.preferredLanguage || 'en';
+
+      console.log(`[Translation] Languages: Sender=${senderLang}, Receiver=${receiverLang}`);
+
+      // If languages differ, translate
+      if (senderLang !== receiverLang) {
+        console.log(`[Translation] Translating message from ${senderLang} to ${receiverLang}...`);
+        
+        const translatedText = await geminiService.translateText(
+          contentToTranslate,
+          senderLang,
+          receiverLang
+        );
+
+        console.log('[Translation] Result:', translatedText);
+
+        messageData.originalLanguage = senderLang;
+        messageData.translatedText = translatedText;
+        messageData.translatedLanguage = receiverLang;
+        messageData.showOriginal = false; // Default to showing translation
+      } else {
+        console.log('[Translation] Skipped: Languages match');
+      }
+
+      return messageData;
+    } catch (error) {
+      console.error('[Translation] Error:', error);
+      return messageData;
+    }
   }
 }
 

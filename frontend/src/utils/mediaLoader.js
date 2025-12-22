@@ -65,7 +65,12 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
         console.log('  Blob URL:', blobUrl);
         return blobUrl;
       } else if (headerResponse.status === 401) {
-        console.warn('🎵 MediaLoader: Header auth returned 401, trying query param');
+        console.warn('🎵 MediaLoader: Header auth returned 401 - Token expired, redirecting to sign in');
+        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('username');
+        window.location.href = '/signin';
+        throw new Error('Authentication expired');
       }
     } catch (headerError) {
       console.warn('🎵 MediaLoader: Header auth failed:', headerError.message);
@@ -91,6 +96,16 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
     if (!queryResponse.ok) {
       console.error('❌ MediaLoader: Query param auth also failed');
       console.error('  Status:', queryResponse.status);
+      
+      // Handle 401 errors
+      if (queryResponse.status === 401) {
+        console.warn('🎵 MediaLoader: Authentication expired, redirecting to sign in');
+        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('username');
+        window.location.href = '/signin';
+      }
+      
       throw new Error(`Failed to fetch media: ${queryResponse.status}`);
     }
     

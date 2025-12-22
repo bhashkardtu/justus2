@@ -162,6 +162,41 @@ Return ONLY the improved transcript, nothing else. Do not add explanations or qu
   }
 
   /**
+   * Translate text between languages
+   * @param {string} text - Text to translate
+   * @param {string} fromLang - Source language code (or 'auto')
+   * @param {string} toLang - Target language code
+   * @returns {Promise<string>} - Translated text
+   */
+  async translateText(text, fromLang, toLang) {
+    console.log(`[Gemini] Requesting translation: "${text}" (${fromLang} -> ${toLang})`);
+    
+    if (!this.enabled) {
+      console.log('[Gemini] Service disabled or API key missing');
+      return text; // Fallback to original if AI disabled
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+      const prompt = `Translate the following text from ${fromLang === 'auto' ? 'detected language' : fromLang} to ${toLang}.
+      Maintain the tone, context, and cultural nuances.
+      Only return the translation, nothing else. Do not add quotes or explanations.
+      
+      Text: "${text}"`;
+
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text().trim();
+      
+      console.log(`[Gemini] Translation success: "${responseText}"`);
+      return responseText;
+    } catch (error) {
+      console.error('[Gemini] Translation error:', error);
+      return text; // Fallback to original
+    }
+  }
+
+  /**
    * Analyze message tone before sending
    * @param {string} message - Message text
    * @returns {Promise<Object>} - { tone: string, confidence: number, warning: string|null }

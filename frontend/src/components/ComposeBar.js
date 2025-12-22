@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ReplyPreview from './ReplyPreview';
+import BotActivation from './BotActivation';
 
 export default function ComposeBar({
   text,
@@ -21,8 +22,24 @@ export default function ComposeBar({
   colors,
   currentUserId
 }) {
+  const [isBotActive, setIsBotActive] = useState(false);
+
+  // Check if bot mode is active
+  useEffect(() => {
+    const botTriggered = text.trim().startsWith('@#');
+    setIsBotActive(botTriggered);
+  }, [text]);
+
+  const handleBotDeactivate = () => {
+    setText('');
+    setIsBotActive(false);
+  };
+
   return (
     <form onSubmit={send} style={{ background: colors.inputBg, borderTop: `1px solid ${colors.inputBorder}`, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      {/* Bot Activation Indicator */}
+      <BotActivation isActive={isBotActive} onDeactivate={handleBotDeactivate} />
+      
       {/* Reply Preview */}
       {replyingTo && (
         <ReplyPreview 

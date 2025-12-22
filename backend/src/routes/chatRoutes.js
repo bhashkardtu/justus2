@@ -4,7 +4,6 @@ import {
   sendMessage,
   getOrCreateConversation,
   markMessagesAsRead,
-  createTestMessage,
   getAllMessages,
   getAllConversations,
   forwardMessages,
@@ -25,7 +24,6 @@ router.get('/wallpaper', authenticateJWT, getWallpaper);
 router.post('/wallpaper', authenticateJWT, setWallpaper);
 
 // Debug routes (consider removing in production)
-router.get('/debug/create-test-message', createTestMessage);
 router.get('/debug/messages', getAllMessages);
 router.get('/debug/conversations', getAllConversations);
 

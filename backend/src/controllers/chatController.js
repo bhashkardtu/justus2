@@ -100,6 +100,13 @@ export const sendMessage = async (req, res) => {
       messageData.conversationId = conversation._id.toString();
     }
     
+    // Process translation
+    const textForTranslation = req.body.plaintext || (!messageData.encryptionNonce ? messageData.content : null);
+    
+    if (textForTranslation && messageData.type === 'text') {
+      await messageService.processMessageTranslation(messageData, textForTranslation);
+    }
+
     const message = new Message(messageData);
     const saved = await message.save();
     res.json(saved);
@@ -299,25 +306,7 @@ export const forwardMessages = async (req, res) => {
 };
 
 // Debug endpoints
-export const createTestMessage = async (req, res) => {
-  console.log('=== CREATING TEST MESSAGE ===');
-  
-  const testMessage = new Message({
-    senderId: '689f7595ef133a08d0922eb8', // bkb
-    receiverId: '689f7c82d7f2234bb27bb1de', // aditya
-    conversationId: '689f7c82d7f2234bb27bb1df', // existing conversation
-    content: 'This is a test message from bkb to aditya',
-    type: 'text',
-    timestamp: new Date(),
-    edited: false,
-    deleted: false
-  });
-  
-  const saved = await testMessage.save();
-  console.log('Created test message with ID:', saved._id);
-  
-  res.send(`Test message created with ID: ${saved._id}`);
-};
+
 
 export const getAllMessages = async (req, res) => {
   console.log('=== DEBUG: GET ALL MESSAGES ===');

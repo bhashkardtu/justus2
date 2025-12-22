@@ -396,6 +396,16 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
               console.error('Response status:', error.response.status);
               console.error('Response data:', error.response.data);
               
+              // Check if it's a 401 error and redirect to sign in
+              if (error.response.status === 401) {
+                console.log('401 Unauthorized - Redirecting to sign in');
+                localStorage.removeItem('token');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('username');
+                navigate('/signin');
+                return;
+              }
+              
               // Show user-friendly error message
               const errorMessage = error.response.data?.message || error.message;
               alert(`Failed to load conversation: ${errorMessage}`);
@@ -412,6 +422,16 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
         if (e.response) {
           console.error('Response status:', e.response.status);
           console.error('Response data:', e.response.data);
+          
+          // Check if it's a 401 error and redirect to sign in
+          if (e.response.status === 401) {
+            console.log('401 Unauthorized - Redirecting to sign in');
+            localStorage.removeItem('token');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('username');
+            navigate('/signin');
+            return;
+          }
         }
         alert(`Failed to load conversation: ${e.message || 'Unknown error'}`);
         setLoading(false);
@@ -591,9 +611,14 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
             nonce: encrypted.nonce,
             conversationId,
             senderId: currentUserId,
-            replyTo: replyingTo?.id || null
+            replyTo: replyingTo?.id || null,
+            plaintext: text.trim() // Send plaintext for server-side translation (optional)
           };
-          console.log('Message encrypted with E2EE');
+          console.log('[Frontend] Sending Encrypted Message:', {
+            ...messageToSend,
+            ciphertext: '***',
+            plaintext: messageToSend.plaintext // Log plaintext to verify it's being sent
+          });
         } else {
           // Fallback to plaintext if encryption fails
           messageToSend = {
@@ -604,7 +629,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
             senderId: currentUserId,
             replyTo: replyingTo?.id || null
           };
-          console.warn('Encryption failed, sending as plaintext');
+          console.warn('[Frontend] Encryption failed, sending as plaintext');
         }
       } else {
         // No public key or keypair available, send as plaintext
@@ -616,11 +641,13 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
           senderId: currentUserId,
           replyTo: replyingTo?.id || null
         };
-        console.log('No encryption keys available, sending as plaintext');
+        console.log('[Frontend] No encryption keys available, sending as plaintext:', messageToSend);
       }
       
       // Try WebSocket first
+      console.log('[Frontend] Emitting chat.send to socket...');
       const wsSuccess = sendSocketMessage(messageToSend);
+      console.log('[Frontend] Socket emit success:', wsSuccess);
       
       // Set up automatic cleanup of temporary message after 10 seconds
       const cleanupTimeout = setTimeout(() => {
@@ -895,6 +922,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
           otherUserOnline={otherUserOnline}
           onLogout={onLogout}
           onAvatarUpdate={handleAvatarUpdate}
+          onProfileUpdate={onUserUpdate}
           onOpenWallpaper={openWallpaperPanel}
           wallpaperActive={wallpaperActive}
         />

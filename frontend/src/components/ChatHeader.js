@@ -21,6 +21,7 @@ export default function ChatHeader({
   otherUserOnline,
   onLogout,
   onAvatarUpdate,
+  onProfileUpdate,
   onOpenWallpaper,
   wallpaperActive
 }) {
@@ -263,6 +264,8 @@ export default function ChatHeader({
           user.avatarUrl = newUrl;
           setShowProfileModal(false);
         }}
+        onProfileUpdate={onProfileUpdate}
+        theme={theme}
       />
     </header>
   );

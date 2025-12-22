@@ -431,3 +431,39 @@ export const getAvatar = async (req, res) => {
   }
 };
 
+export const updateProfile = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { displayName, preferredLanguage } = req.body;
+    
+    const updates = {};
+    if (displayName) updates.displayName = displayName;
+    if (preferredLanguage) updates.preferredLanguage = preferredLanguage;
+    
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: updates },
+      { new: true }
+    ).select('-passwordHash -verificationCode -verificationCodeExpires');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        username: user.username,
+        displayName: user.displayName,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        preferredLanguage: user.preferredLanguage
+      }
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ message: 'Failed to update profile' });
+  }
+};
+

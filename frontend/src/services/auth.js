@@ -123,3 +123,13 @@ export const logout = async () => {
   // Optionally reload the page to ensure clean state
   window.location.reload();
 };
+
+export const updateProfile = async (data) => {
+  try {
+    const response = await api.put('/api/auth/profile', data);
+    return response.data;
+  } catch (error) {
+    console.error('Update profile error:', error);
+    throw error;
+  }
+};
