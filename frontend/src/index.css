@@ -44,3 +44,17 @@ input:focus, textarea:focus, button:focus {
     font-size: 14px;
   }
 }
+
+/* Mobile-optimized touch targets */
+@media (max-width: 768px) {
+  /* Ensure minimum 44x44px touch targets on mobile */
+  button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  /* Hide text labels on very small screens if needed */
+  .contacts-label {
+    display: none !important;
+  }
+}

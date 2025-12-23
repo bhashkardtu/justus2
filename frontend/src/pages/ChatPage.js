@@ -54,7 +54,7 @@ const WALLPAPER_PRESETS = [
   }
 ];
 
-export default function ChatPage({ user, onLogout, onUserUpdate }){
+export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwitcher, setShowContactSwitcher }){
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [conversationId, setConversationId] = useState(null);
@@ -506,6 +506,20 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
   // Read receipts via hook
   const { markMessagesAsRead } = useReadReceipts(conversationId, messages);
 
+  // Close contact switcher with ESC key
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && showContactSwitcher) {
+        setShowContactSwitcher(false);
+      }
+    };
+    
+    if (showContactSwitcher) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [showContactSwitcher, setShowContactSwitcher]);
+
   // Comprehensive cleanup on unmount
   useEffect(() => {
     return () => {
@@ -897,8 +911,223 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
   const wallpaperIsGradient = resolvedWallpaperUrl && (resolvedWallpaperUrl.startsWith('linear-gradient') || resolvedWallpaperUrl.startsWith('radial-gradient'));
   const wallpaperActive = wallpaperSettings.sourceType !== 'none' && Boolean(resolvedWallpaperUrl);
 
+  // Quick Contact Switcher Component
+  const QuickContactSwitcher = () => {
+    const [searchQuery, setSearchQuery] = React.useState('');
+    const filteredContacts = availableUsers.filter(u => 
+      u.id !== user.id && 
+      (u.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+       u.username?.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    if (!showContactSwitcher) return null;
+
+    return (
+      <div 
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '80px 20px 20px'
+        }}
+        onClick={() => setShowContactSwitcher(false)}
+      >
+        <div 
+          style={{
+            background: theme === 'dark' ? '#1f2937' : '#ffffff',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '500px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            maxHeight: '80vh',
+            display: 'flex',
+            flexDirection: 'column',
+            animation: 'slideDown 0.2s ease-out'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Search Header */}
+          <div style={{ padding: '20px', borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#e5e7eb'}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '20px', height: '20px', color: theme === 'dark' ? '#9ca3af' : '#6b7280' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search contacts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  fontSize: '16px',
+                  color: theme === 'dark' ? '#e5e7eb' : '#1f2937',
+                  padding: '8px 0'
+                }}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    padding: '4px',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: theme === 'dark' ? '#9ca3af' : '#6b7280'
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '18px', height: '18px' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            <div style={{ 
+              marginTop: '8px', 
+              fontSize: '12px', 
+              color: theme === 'dark' ? '#9ca3af' : '#6b7280' 
+            }}>
+              {filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''} found
+            </div>
+          </div>
+
+          {/* Contact List */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+            {filteredContacts.length === 0 ? (
+              <div style={{
+                padding: '40px 20px',
+                textAlign: 'center',
+                color: theme === 'dark' ? '#9ca3af' : '#6b7280'
+              }}>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '48px', height: '48px', margin: '0 auto 12px', opacity: 0.5 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                </svg>
+                <div>No contacts found</div>
+              </div>
+            ) : (
+              filteredContacts.map(contact => (
+                <button
+                  key={contact.id}
+                  onClick={() => {
+                    selectOtherUser(contact.id);
+                    setShowContactSwitcher(false);
+                    setSearchQuery('');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    background: otherUserId === contact.id 
+                      ? (theme === 'dark' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.1)')
+                      : 'transparent',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s',
+                    textAlign: 'left',
+                    marginBottom: '4px'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (otherUserId !== contact.id) {
+                      e.currentTarget.style.background = theme === 'dark' ? 'rgba(75, 85, 99, 0.3)' : 'rgba(243, 244, 246, 1)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (otherUserId !== contact.id) {
+                      e.currentTarget.style.background = 'transparent';
+                    }
+                  }}
+                >
+                  <img
+                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(contact.displayName || contact.username)}&size=40&background=6366f1&color=ffffff&bold=true`}
+                    alt=""
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      flexShrink: 0
+                    }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontWeight: 600,
+                      fontSize: '14px',
+                      color: theme === 'dark' ? '#e5e7eb' : '#1f2937',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {contact.displayName || contact.username}
+                    </div>
+                    {contact.displayName && (
+                      <div style={{
+                        fontSize: '12px',
+                        color: theme === 'dark' ? '#9ca3af' : '#6b7280',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        @{contact.username}
+                      </div>
+                    )}
+                  </div>
+                  {otherUserId === contact.id && (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '20px', height: '20px', color: '#6366f1' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Quick tip */}
+          <div style={{
+            padding: '12px 20px',
+            borderTop: `1px solid ${theme === 'dark' ? '#374151' : '#e5e7eb'}`,
+            fontSize: '12px',
+            color: theme === 'dark' ? '#9ca3af' : '#6b7280',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '16px', height: '16px' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+            </svg>
+            Press ESC or click outside to close
+          </div>
+        </div>
+
+        <style>
+          {`
+            @keyframes slideDown {
+              from { opacity: 0; transform: translateY(-20px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+          `}
+        </style>
+      </div>
+    );
+  };
+
   return (
     <div style={{ background: colors.bg, minHeight: '100vh' }}>
+      {/* Quick Contact Switcher Overlay */}
+      <QuickContactSwitcher />
+      
       {/* WhatsApp-style chat container */}
       <div style={{ maxWidth: '64rem', margin: '0 auto', height: '100vh', display: 'flex', flexDirection: 'column', background: colors.chatBg, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', borderRadius: '8px', overflow: 'hidden' }}>
         {/* Modern Chat Header */}
@@ -1048,6 +1277,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate }){
                 scrollToBottom();
               }}
               darkMode={theme === 'dark'}
+              onClose={() => setShowSearchModal(false)}
             />
           </div>
         </div>

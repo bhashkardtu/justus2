@@ -422,7 +422,14 @@ export const getAvatar = async (req, res) => {
       return res.status(404).json({ message: 'Avatar not found' });
     }
 
+    // Set CORS headers for image loading
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
     res.set('Content-Type', files.contentType || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+    
     const downloadStream = bucket.openDownloadStream(objectId);
     downloadStream.pipe(res);
   } catch (error) {

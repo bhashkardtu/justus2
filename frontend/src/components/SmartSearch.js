@@ -1,11 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import aiService from '../services/aiService';
 import LoadingSpinner from './LoadingSpinner';
 
-export default function SmartSearch({ conversationId, onResultClick, darkMode }) {
+export default function SmartSearch({ conversationId, onResultClick, darkMode, onClose }) {
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState(null);
+  const panelRef = useRef(null);
+
+  // ESC key handler
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target) && onClose) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -23,12 +46,16 @@ export default function SmartSearch({ conversationId, onResultClick, darkMode })
   };
 
   return (
-    <div style={{
-      padding: '16px',
-      background: darkMode ? '#1f2c33' : '#fff',
-      borderRadius: '8px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-    }}>
+    <div 
+      ref={panelRef} 
+      role="dialog"
+      aria-label="Smart search messages"
+      style={{
+        padding: '16px',
+        background: darkMode ? '#1f2c33' : '#fff',
+        borderRadius: '8px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+      }}>
       <form onSubmit={handleSearch} style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '8px' }}>
           <input

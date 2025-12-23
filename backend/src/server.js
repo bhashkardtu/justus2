@@ -42,7 +42,8 @@ console.log('Allowed CORS Origins:', allowedOrigins);
 // Security headers
 app.use(helmet({
   contentSecurityPolicy: false, // Disable for WebSocket compatibility
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" } // Allow cross-origin image loading
 }));
 
 // CORS configuration with function to handle dynamic origins

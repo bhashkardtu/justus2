@@ -25,8 +25,33 @@ export default function ProfileModal({ show, onClose, user, onAvatarUpdate, onPr
   const [displayName, setDisplayName] = useState('');
   const [preferredLanguage, setPreferredLanguage] = useState('en');
   const fileInputRef = useRef(null);
+  const modalRef = useRef(null);
 
   const isDark = theme === 'dark';
+
+  // ESC key handler
+  useEffect(() => {
+    if (!show) return;
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [show, onClose]);
+
+  // Click outside handler
+  useEffect(() => {
+    if (!show) return;
+    const handleClickOutside = (e) => {
+      if (modalRef.current && !modalRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [show, onClose]);
 
   // Theme-based styles
   const styles = {
@@ -120,13 +145,13 @@ export default function ProfileModal({ show, onClose, user, onAvatarUpdate, onPr
     }
   };
 
-  const currentAvatarUrl = previewUrl || getAvatarUrl(user?.avatarUrl) || `https://ui-avatars.com/api/?name=${user?.displayName || user?.username || 'User'}&size=200`;
+  const currentAvatarUrl = previewUrl || getAvatarUrl(user?.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || user?.username || 'User')}&size=200&background=6366f1&color=ffffff&bold=true`;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className={`${styles.modalBg} rounded-2xl p-6 w-full max-w-md shadow-2xl border animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto`}>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
+      <div ref={modalRef} className={`${styles.modalBg} rounded-2xl p-6 w-full max-w-md shadow-2xl border animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto`}>
         <div className="text-center mb-6">
-          <h3 className={`text-xl font-bold ${styles.textPrimary} mb-2`}>Profile Settings</h3>
+          <h3 id="profile-modal-title" className={`text-xl font-bold ${styles.textPrimary} mb-2`}>Profile Settings</h3>
           <p className={`${styles.textSecondary} text-sm`}>Manage your profile picture and information</p>
         </div>
 
@@ -135,8 +160,12 @@ export default function ProfileModal({ show, onClose, user, onAvatarUpdate, onPr
           <div className="relative mb-4">
             <img
               src={currentAvatarUrl}
-              alt="Profile"
+              alt=""
+              onError={(e) => {
+                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.displayName || user?.username || 'User')}&size=200&background=6366f1&color=ffffff&bold=true`;
+              }}
               className="w-32 h-32 rounded-full object-cover border-4 border-indigo-200 shadow-lg"
+              style={{ backgroundColor: '#6366f1' }}
             />
             {uploading && (
               <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">

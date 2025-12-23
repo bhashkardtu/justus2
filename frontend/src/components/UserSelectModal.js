@@ -1,10 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import { getAvatarUrl } from '../services/avatarService';
 
 export default function UserSelectModal({ show, onClose, availableUsers, currentUserId, onSelect }) {
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const modalRef = useRef(null);
+
+  // ESC key handler
+  useEffect(() => {
+    if (!show) return;
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [show, onClose]);
+
+  // Click outside handler
+  useEffect(() => {
+    if (!show) return;
+    const handleClickOutside = (e) => {
+      if (modalRef.current && !modalRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [show, onClose]);
 
   if (!show) return null;
 
@@ -31,10 +56,10 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-gray-200 animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="contacts-modal-title">
+      <div ref={modalRef} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-gray-200 animate-in zoom-in-95 duration-300">
         <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Contacts</h3>
+          <h3 id="contacts-modal-title" className="text-xl font-bold text-gray-900 mb-2">Contacts</h3>
           <p className="text-gray-500 text-sm">Select a contact or add a new one</p>
         </div>
 
@@ -78,8 +103,11 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
             <button key={u.id} onClick={() => onSelect(u.id)} className="w-full text-left p-4 hover:bg-gray-50 rounded-xl transition-colors duration-200 border border-transparent hover:border-gray-200">
               <div className="flex items-center space-x-3">
                 <img
-                  src={getAvatarUrl(u.avatarUrl) || `https://ui-avatars.com/api/?name=${u.displayName || u.username}&size=48`}
-                  alt={u.displayName || u.username}
+                  src={getAvatarUrl(u.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.displayName || u.username)}&size=48&background=6366f1&color=ffffff&bold=true`}
+                  alt=""
+                  onError={(e) => {
+                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.displayName || u.username)}&size=48&background=6366f1&color=ffffff&bold=true`;
+                  }}
                   className="w-12 h-12 rounded-full object-cover shadow-md border-2 border-indigo-200"
                 />
                 <div className="flex-1 min-w-0">

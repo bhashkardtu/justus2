@@ -85,9 +85,12 @@ export default function VideoCallModal({
               border: '4px solid ' + (colors?.sendBtn || '#25d366')
             }}>
               <img
-                src={getAvatarUrl(otherUser?.avatarUrl) || `https://ui-avatars.com/api/?name=${otherUser?.displayName || otherUser?.username || 'User'}&size=120`}
-                alt="User"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                src={getAvatarUrl(otherUser?.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser?.displayName || otherUser?.username || 'User')}&size=120&background=6366f1&color=ffffff&bold=true`}
+                alt=""
+                onError={(e) => {
+                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser?.displayName || otherUser?.username || 'User')}&size=120&background=6366f1&color=ffffff&bold=true`;
+                }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', backgroundColor: '#6366f1' }}
               />
             </div>
 

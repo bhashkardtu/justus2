@@ -15,6 +15,31 @@ export default function WallpaperPanel({
   const [draft, setDraft] = useState(value);
   const [customUrl, setCustomUrl] = useState(value.imageUrl || '');
   const fileInputRef = useRef(null);
+  const panelRef = useRef(null);
+
+  // ESC key handler
+  useEffect(() => {
+    if (!open) return;
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [open, onClose]);
+
+  // Click outside handler
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open, onClose]);
 
   useEffect(() => {
     setDraft(value);
@@ -53,11 +78,11 @@ export default function WallpaperPanel({
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 2000 }}>
-      <div style={{ background: '#0f172a', color: '#e2e8f0', borderRadius: '16px', width: 'min(960px, 95vw)', boxShadow: '0 20px 80px rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 2000 }} role="dialog" aria-modal="true" aria-labelledby="wallpaper-panel-title">
+      <div ref={panelRef} style={{ background: '#0f172a', color: '#e2e8f0', borderRadius: '16px', width: 'min(960px, 95vw)', boxShadow: '0 20px 80px rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>Chat Wallpapers</div>
+            <div id="wallpaper-panel-title" style={{ fontWeight: 700, fontSize: '1.05rem' }}>Chat Wallpapers</div>
             <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Applies only to this conversation for you</div>
           </div>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.04)', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '8px 12px', cursor: 'pointer' }}>Close</button>
