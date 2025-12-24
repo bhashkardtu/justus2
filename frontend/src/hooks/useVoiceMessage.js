@@ -11,6 +11,7 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
   const audioStreamRef = useRef(null);
   const recognitionRef = useRef(null);
   const [transcript, setTranscript] = useState('');
+  const transcriptRef = useRef(''); // Add ref to track latest transcript
 
   // Initialize speech recognition
   useEffect(() => {
@@ -29,12 +30,17 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
             finalTranscript += transcript + ' ';
+            console.log('[VoiceMessage] Speech recognized (final):', transcript);
           } else {
             interimTranscript += transcript;
+            console.log('[VoiceMessage] Speech recognized (interim):', transcript);
           }
         }
 
-        setTranscript(finalTranscript + interimTranscript);
+        const combined = finalTranscript + interimTranscript;
+        setTranscript(combined);
+        transcriptRef.current = combined; // Keep ref in sync
+        console.log('[VoiceMessage] Current transcript:', combined);
       };
 
       recognitionRef.current = recognition;
@@ -55,6 +61,7 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
     try {
       setRecording(true);
       setTranscript('');
+      transcriptRef.current = ''; // Reset ref too
       
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStreamRef.current = stream;
@@ -67,7 +74,12 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
       
       // Start speech recognition
       if (recognitionRef.current) {
+        console.log('[VoiceMessage] Starting speech recognition...');
         recognitionRef.current.start();
+      } else {
+        console.warn('[VoiceMessage] ⚠️ Speech Recognition not available!');
+        console.warn('Translation will not work without transcript.');
+        console.warn('Use Chrome or Edge browser for Speech Recognition support.');
       }
       
       mr.onstop = async () => {
@@ -76,22 +88,60 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
           recognitionRef.current.stop();
         }
 
+        // Use ref to get latest transcript value
+        const capturedTranscript = transcriptRef.current.trim();
+        console.log('[VoiceMessage] Recording stopped. Transcript:', capturedTranscript || '(empty)');
+
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         
         // Enhance transcription with AI if available
-        let finalTranscript = transcript.trim();
+        let finalTranscript = capturedTranscript;
+        let translatedTranscript = '';
+        let targetLanguage = 'en';
+        
         if (finalTranscript) {
+          console.log('[VoiceTranslation] Starting transcript processing:', finalTranscript);
           setTranscribing(true);
           try {
+            console.log('[VoiceTranslation] Enhancing transcript...');
             const enhanced = await aiService.enhanceTranscription(finalTranscript);
             if (enhanced.improved) {
               finalTranscript = enhanced.enhanced;
-              console.log('Transcription enhanced by AI');
+              console.log('[VoiceTranslation] ✓ Transcript enhanced:', finalTranscript);
+            } else {
+              console.log('[VoiceTranslation] No enhancement needed');
+            }
+
+            // Get receiver's preferred language
+            try {
+              const authenticatedApi = getAuthenticatedApi();
+              const receiverRes = await authenticatedApi.get(`/api/auth/user/${otherUserId}`);
+              targetLanguage = receiverRes.data?.preferredLanguage || 'en';
+              console.log('[VoiceTranslation] Receiver preferred language:', targetLanguage);
+            } catch (err) {
+              console.warn('[VoiceTranslation] Could not fetch receiver language, defaulting to English:', err.message);
+            }
+
+            console.log('[VoiceTranslation] Translating to', targetLanguage, '...');
+            const translation = await aiService.translateText(finalTranscript, 'auto', targetLanguage);
+            if (translation?.translated) {
+              translatedTranscript = translation.translated;
+              console.log('[VoiceTranslation] ✓ Translation successful:', translatedTranscript);
+            } else {
+              console.log('[VoiceTranslation] ✗ Translation failed or empty result');
             }
           } catch (error) {
-            console.error('AI enhancement failed, using original:', error);
+            console.error('[VoiceTranslation] ✗ AI enhancement/translation failed:', error);
           }
           setTranscribing(false);
+        } else {
+          console.log('[VoiceTranslation] No transcript to process');
+          console.warn('[VoiceMessage] ⚠️ Speech recognition did not capture any text!');
+          console.warn('[VoiceMessage] Possible reasons:');
+          console.warn('  1. Browser does not support Speech Recognition (use Chrome/Edge)');
+          console.warn('  2. Microphone did not pick up audio clearly');
+          console.warn('  3. Recognition language mismatch');
+          console.warn('  4. Recording was too short');
         }
 
         const fd = new FormData();
@@ -111,8 +161,9 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
             conversationId,
             timestamp: new Date().toISOString(),
             temporary: true,
-            metadata: finalTranscript ? { transcript: finalTranscript } : null
+            metadata: finalTranscript ? { transcript: finalTranscript, translatedTranscript: translatedTranscript || undefined } : null
           };
+          console.log('[VoiceTranslation] Message metadata:', tempMessage.metadata);
           setMessages(prev => [...prev, tempMessage]);
           const success = sendSocketMessage({ 
             receiverId: otherUserId || 'other', 
@@ -120,7 +171,7 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
             content: url, 
             conversationId, 
             senderId: userId,
-            metadata: finalTranscript ? { transcript: finalTranscript } : null
+            metadata: finalTranscript ? { transcript: finalTranscript, translatedTranscript: translatedTranscript || undefined } : null
           });
           if (!success) {
             try {
@@ -129,7 +180,11 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
                 content: url, 
                 receiverId: otherUserId, 
                 conversationId,
-                metadata: finalTranscript ? { transcript: finalTranscript } : null
+                metadata: finalTranscript ? { 
+                  transcript: finalTranscript, 
+                  translatedTranscript: translatedTranscript || undefined,
+                  targetLanguage: targetLanguage || 'en'
+                } : null
               });
             } catch (apiError) {
               setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));

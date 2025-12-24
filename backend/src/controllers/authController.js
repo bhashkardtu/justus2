@@ -378,6 +378,29 @@ export const getUsers = async (req, res) => {
   }
 };
 
+export const getUserById = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId, 'username displayName email avatarUrl preferredLanguage');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({
+      id: user._id.toString(),
+      username: user.username,
+      displayName: user.displayName,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      preferredLanguage: user.preferredLanguage || 'en'
+    });
+  } catch (error) {
+    console.error('Get user by ID error:', error);
+    res.status(500).json({ message: 'Failed to fetch user' });
+  }
+};
+
 export const uploadAvatar = async (req, res) => {
   try {
     if (!req.file) {

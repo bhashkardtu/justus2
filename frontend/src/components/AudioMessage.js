@@ -8,7 +8,9 @@ export default function AudioMessage({ message, mine }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [speakingTranslated, setSpeakingTranslated] = useState(false);
   const audioRef = useRef(null);
+  const utteranceRef = useRef(null);
 
   useEffect(() => {
     const loadAudio = async () => {
@@ -66,6 +68,15 @@ export default function AudioMessage({ message, mine }) {
     };
   }, [audioUrl]);
 
+  useEffect(() => {
+    return () => {
+      // Stop any ongoing speech synthesis when component unmounts
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   const togglePlayPause = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -88,6 +99,69 @@ export default function AudioMessage({ message, mine }) {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleSpeakTranslation = () => {
+    const translated = message.metadata?.translatedTranscript;
+    console.log('[AudioMessage] handleSpeakTranslation called:', { hasTranslation: !!translated, text: translated });
+    
+    if (!translated) {
+      console.warn('[AudioMessage] No translation available');
+      return;
+    }
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      console.error('[AudioMessage] Speech synthesis not supported');
+      alert('Text-to-speech is not supported in this browser.');
+      return;
+    }
+
+    const synth = window.speechSynthesis;
+
+    // If already speaking, stop
+    if (speakingTranslated) {
+      console.log('[AudioMessage] Stopping speech synthesis');
+      synth.cancel();
+      setSpeakingTranslated(false);
+      return;
+    }
+
+    console.log('[AudioMessage] Starting speech synthesis:', translated);
+    const utterance = new SpeechSynthesisUtterance(translated);
+    
+    // Use target language from metadata, or detect from text
+    const targetLang = message.metadata?.targetLanguage || 'en';
+    const langMap = {
+      'en': 'en-US',
+      'hi': 'hi-IN',
+      'pa': 'pa-IN',
+      'ta': 'ta-IN',
+      'te': 'te-IN',
+      'bn': 'bn-IN',
+      'mr': 'mr-IN',
+      'gu': 'gu-IN',
+      'kn': 'kn-IN',
+      'ml': 'ml-IN',
+      'ur': 'ur-IN',
+      'od': 'or-IN',
+      'as': 'as-IN'
+    };
+    utterance.lang = langMap[targetLang] || 'en-US';
+    console.log('[AudioMessage] Using TTS language:', utterance.lang);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+
+    utterance.onend = () => {
+      console.log('[AudioMessage] Speech synthesis ended');
+      setSpeakingTranslated(false);
+    };
+    utterance.onerror = (e) => {
+      console.error('[AudioMessage] Speech synthesis error:', e);
+      setSpeakingTranslated(false);
+    };
+
+    utteranceRef.current = utterance;
+    setSpeakingTranslated(true);
+    synth.speak(utterance);
   };
 
   if (error) {
@@ -177,6 +251,25 @@ export default function AudioMessage({ message, mine }) {
             <audio ref={audioRef} src={audioUrl} preload="metadata" style={{ display: 'none' }} />
           )}
           
+          {/* Display translated transcript if available */}
+          {message.metadata?.translatedTranscript && (
+            <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${
+              mine ? 'bg-emerald-50 text-emerald-800' : 'bg-emerald-100 text-emerald-800'
+            }`} style={{ borderLeft: '3px solid #10b981' }}>
+              <div className="flex items-center justify-between gap-3 mb-1">
+                <div className="font-semibold text-xs uppercase tracking-wide opacity-80">Translation</div>
+                <button
+                  type="button"
+                  onClick={handleSpeakTranslation}
+                  className="text-xs font-semibold px-3 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                >
+                  {speakingTranslated ? 'Stop' : 'Play'} translation
+                </button>
+              </div>
+              <div className="italic">"{message.metadata.translatedTranscript}"</div>
+            </div>
+          )}
+
           {/* Display transcript if available */}
           {message.metadata?.transcript && (
             <div className={`mt-3 px-3 py-2 rounded-lg text-sm italic ${

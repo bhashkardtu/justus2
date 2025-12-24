@@ -56,6 +56,25 @@ class AIService {
       return { tone: 'neutral', confidence: 0, warning: null };
     }
   }
+
+  /**
+   * Translate text using AI backend
+   * @param {string} text - Text to translate
+   * @param {string} from - Source language (default auto)
+   * @param {string} to - Target language (default en)
+   */
+  async translateText(text, from = 'auto', to = 'en') {
+    console.log('[AIService] translateText called:', { text: text.substring(0, 50), from, to });
+    try {
+      const api = getAuthenticatedApi();
+      const response = await api.post('/api/ai/translate', { text, from, to });
+      console.log('[AIService] translateText response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[AIService] translateText error:', error.message);
+      return { translated: text, from, to, error: error.message };
+    }
+  }
 }
 
 export default new AIService();

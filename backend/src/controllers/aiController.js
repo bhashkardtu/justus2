@@ -2,6 +2,31 @@ import geminiService from '../services/geminiService.js';
 import Message from '../models/Message.js';
 import User from '../models/User.js';
 
+// Translate text to a target language (default English)
+export const translateText = async (req, res) => {
+  try {
+    const { text, from = 'auto', to = 'en' } = req.body;
+
+    console.log('[Backend] translateText request:', { textLength: text?.length, from, to });
+
+    if (!text) {
+      return res.status(400).json({ message: 'Text is required' });
+    }
+
+    const translated = await geminiService.translateText(text, from, to);
+    console.log('[Backend] translateText response:', { translated });
+
+    res.json({ translated, from, to });
+  } catch (error) {
+    console.error('[Backend] Translation error:', error);
+    res.status(500).json({
+      message: 'Translation failed',
+      error: error.message,
+      translated: req.body.text
+    });
+  }
+};
+
 export const smartSearch = async (req, res) => {
   try {
     const userId = req.userId;
