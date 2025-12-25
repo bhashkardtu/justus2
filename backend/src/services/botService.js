@@ -97,7 +97,7 @@ Always maintain a professional yet conversational tone.`;
     }
 
     try {
-      const modelName = process.env.GEMINI_MODEL || 'models/gemini-2.5-flash-lite';
+      const modelName = process.env.GEMINI_MODEL || 'models/gemini-2.0-flash';
       const model = this.genAI.getGenerativeModel({ model: modelName });
 
       // Build the prompt with context

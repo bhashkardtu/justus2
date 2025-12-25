@@ -9,6 +9,14 @@ yarn-error.log*
 .env.local
 .env.*.local
 
+# Google Cloud credentials
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+google-cloud-key.json
+justus-*.json
+
 # IDE
 .vscode/
 .idea/
@@ -31,6 +39,15 @@ build/
 # Testing
 coverage/
 .nyc_output/
+
+# Test files
+test-*.js
+*-test.js
+*.test.js
+test-*.md
+test-*.html
+hindi-*.mp3
+tts-test-*.mp3
 
 # Temporary files
 tmp/

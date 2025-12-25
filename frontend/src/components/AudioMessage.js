@@ -10,7 +10,7 @@ export default function AudioMessage({ message, mine }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [speakingTranslated, setSpeakingTranslated] = useState(false);
   const audioRef = useRef(null);
-  const utteranceRef = useRef(null);
+  const ttsAudioRef = useRef(null); // Add ref for TTS audio
 
   useEffect(() => {
     const loadAudio = async () => {
@@ -70,9 +70,10 @@ export default function AudioMessage({ message, mine }) {
 
   useEffect(() => {
     return () => {
-      // Stop any ongoing speech synthesis when component unmounts
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
+      // Stop and cleanup TTS audio when component unmounts
+      if (ttsAudioRef.current) {
+        ttsAudioRef.current.pause();
+        ttsAudioRef.current = null;
       }
     };
   }, []);
@@ -101,67 +102,78 @@ export default function AudioMessage({ message, mine }) {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const handleSpeakTranslation = () => {
+  const handleSpeakTranslation = async () => {
     const translated = message.metadata?.translatedTranscript;
-    console.log('[AudioMessage] handleSpeakTranslation called:', { hasTranslation: !!translated, text: translated });
+    const targetLang = message.metadata?.targetLanguage || 'hi';
+    console.log('[AudioMessage] handleSpeakTranslation called:', { hasTranslation: !!translated, language: targetLang, text: translated });
     
     if (!translated) {
       console.warn('[AudioMessage] No translation available');
       return;
     }
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
-      console.error('[AudioMessage] Speech synthesis not supported');
-      alert('Text-to-speech is not supported in this browser.');
-      return;
-    }
-
-    const synth = window.speechSynthesis;
 
     // If already speaking, stop
     if (speakingTranslated) {
-      console.log('[AudioMessage] Stopping speech synthesis');
-      synth.cancel();
+      console.log('[AudioMessage] Stopping TTS playback');
+      if (ttsAudioRef.current) {
+        ttsAudioRef.current.pause();
+        ttsAudioRef.current.currentTime = 0;
+        ttsAudioRef.current = null;
+      }
       setSpeakingTranslated(false);
       return;
     }
 
-    console.log('[AudioMessage] Starting speech synthesis:', translated);
-    const utterance = new SpeechSynthesisUtterance(translated);
-    
-    // Use target language from metadata, or detect from text
-    const targetLang = message.metadata?.targetLanguage || 'en';
-    const langMap = {
-      'en': 'en-US',
-      'hi': 'hi-IN',
-      'pa': 'pa-IN',
-      'ta': 'ta-IN',
-      'te': 'te-IN',
-      'bn': 'bn-IN',
-      'mr': 'mr-IN',
-      'gu': 'gu-IN',
-      'kn': 'kn-IN',
-      'ml': 'ml-IN',
-      'ur': 'ur-IN',
-      'od': 'or-IN',
-      'as': 'as-IN'
-    };
-    utterance.lang = langMap[targetLang] || 'en-US';
-    console.log('[AudioMessage] Using TTS language:', utterance.lang);
-    utterance.rate = 1;
-    utterance.pitch = 1;
+    try {
+      console.log('[AudioMessage] Fetching TTS audio for language:', targetLang);
+      setSpeakingTranslated(true);
+      
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/tts/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          text: translated,
+          language: targetLang
+        })
+      });
 
-    utterance.onend = () => {
-      console.log('[AudioMessage] Speech synthesis ended');
-      setSpeakingTranslated(false);
-    };
-    utterance.onerror = (e) => {
-      console.error('[AudioMessage] Speech synthesis error:', e);
-      setSpeakingTranslated(false);
-    };
+      if (!response.ok) {
+        throw new Error(`TTS request failed: ${response.statusText}`);
+      }
 
-    utteranceRef.current = utterance;
-    setSpeakingTranslated(true);
-    synth.speak(utterance);
+      const audioBlob = await response.blob();
+      const ttsAudioUrl = URL.createObjectURL(audioBlob);
+      
+      console.log('[AudioMessage] Playing TTS audio');
+      
+      // Create a new audio element for TTS
+      const ttsAudio = new Audio(ttsAudioUrl);
+      ttsAudioRef.current = ttsAudio; // Store reference for stopping
+      
+      ttsAudio.onended = () => {
+        console.log('[AudioMessage] TTS playback ended');
+        setSpeakingTranslated(false);
+        URL.revokeObjectURL(ttsAudioUrl);
+        ttsAudioRef.current = null;
+      };
+      ttsAudio.onerror = (e) => {
+        console.error('[AudioMessage] TTS playback error:', e);
+        setSpeakingTranslated(false);
+        URL.revokeObjectURL(ttsAudioUrl);
+        alert('Failed to play translation audio');
+      };
+      
+      await ttsAudio.play();
+      
+    } catch (error) {
+      console.error('[AudioMessage] TTS error:', error);
+      setSpeakingTranslated(false);
+      alert('Failed to generate speech for translation. Please try again.');
+    }
   };
 
   if (error) {

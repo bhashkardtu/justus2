@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'models/gemini-2.5-flash-lite';
+const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'models/gemini-2.5-flash';
 
 class GeminiService {
   constructor() {
