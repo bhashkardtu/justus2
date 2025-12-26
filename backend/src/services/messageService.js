@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import geminiService from './geminiService.js';
+import translationService from './translationService.js';
 
 export class MessageService {
   async convertToDTO(message) {
@@ -149,7 +150,7 @@ export class MessageService {
       if (senderLang !== receiverLang) {
         console.log(`[Translation] Translating message from ${senderLang} to ${receiverLang}...`);
         
-        const translatedText = await geminiService.translateText(
+        const translatedText = await translationService.translate(
           contentToTranslate,
           senderLang,
           receiverLang

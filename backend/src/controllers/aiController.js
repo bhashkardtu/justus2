@@ -1,4 +1,5 @@
 import geminiService from '../services/geminiService.js';
+import translationService from '../services/translationService.js';
 import Message from '../models/Message.js';
 import User from '../models/User.js';
 
@@ -13,7 +14,7 @@ export const translateText = async (req, res) => {
       return res.status(400).json({ message: 'Text is required' });
     }
 
-    const translated = await geminiService.translateText(text, from, to);
+    const translated = await translationService.translate(text, from, to);
     console.log('[Backend] translateText response:', { translated });
 
     res.json({ translated, from, to });

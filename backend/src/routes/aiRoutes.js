@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateJWT } from '../middleware/auth.js';
 import { smartSearch, enhanceTranscription, analyzeTone, translateText } from '../controllers/aiController.js';
+import translationService from '../services/translationService.js';
 
 const router = express.Router();
 
@@ -18,5 +19,11 @@ router.post('/analyze-tone', analyzeTone);
 
 // Translation endpoint
 router.post('/translate', translateText);
+
+// Translation cache stats endpoint
+router.get('/translation/stats', (req, res) => {
+  const stats = translationService.getCacheStats();
+  res.json(stats);
+});
 
 export default router;
