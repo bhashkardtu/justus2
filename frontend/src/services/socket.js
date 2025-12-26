@@ -149,7 +149,24 @@ export function sendSocketMessage(message){
  */
 export function exchangePublicKey(keyPair) {
   if (!socket || !socket.connected) {
-    console.error('Cannot exchange key - Socket not connected');
+    console.warn('Socket not connected yet, will retry key exchange when connected');
+    
+    // Wait for socket to connect and retry
+    const retryExchange = () => {
+      if (socket && socket.connected) {
+        try {
+          socket.emit('crypto.exchange-key', {
+            publicKey: keyPair.publicKey
+          });
+          console.log('Public key exchanged (after retry)');
+        } catch (error) {
+          console.error('Failed to exchange public key:', error);
+        }
+      }
+    };
+    
+    // Retry after a short delay
+    setTimeout(retryExchange, 1000);
     return false;
   }
 
