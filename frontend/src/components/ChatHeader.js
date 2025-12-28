@@ -59,10 +59,10 @@ export default function ChatHeader({
 
   // Common button styles
   const iconButtonStyle = {
-    width: '40px',
-    height: '40px',
-    minWidth: '40px',
-    minHeight: '40px',
+    width: 'clamp(36px, 10vw, 40px)',
+    height: 'clamp(36px, 10vw, 40px)',
+    minWidth: '36px',
+    minHeight: '36px',
     borderRadius: '50%',
     background: 'rgba(99, 102, 241, 0.1)',
     border: 'none',
@@ -76,13 +76,13 @@ export default function ChatHeader({
   };
 
   return (
-    <header style={{ 
-      background: colors.header, 
-      color: colors.headerText, 
-      padding: '12px 16px', 
-      display: 'flex', 
-      alignItems: 'center', 
-      gap: '12px',
+    <header style={{
+      background: colors.header,
+      color: colors.headerText,
+      padding: '12px 16px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 'clamp(6px, 2vw, 12px)',
       borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#e5e7eb'}`
     }}>
       {/* Avatar + User Info Section */}
@@ -94,42 +94,42 @@ export default function ChatHeader({
             onError={(e) => {
               e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUser?.displayName || displayUser?.username || 'User')}&size=40&background=6366f1&color=ffffff&bold=true`;
             }}
-            style={{ 
-              border: `2px solid ${otherUserOnline ? '#10b981' : '#6b7280'}`, 
-              borderRadius: '50%', 
-              width: '40px', 
-              height: '40px', 
+            style={{
+              border: `2px solid ${otherUserOnline ? '#10b981' : '#6b7280'}`,
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
               objectFit: 'cover',
               backgroundColor: '#6366f1'
             }}
           />
           {otherUserOnline && (
-            <div style={{ 
-              position: 'absolute', 
-              bottom: '0', 
-              right: '0', 
-              width: '12px', 
-              height: '12px', 
-              background: '#10b981', 
-              border: '2px solid ' + colors.header, 
-              borderRadius: '50%' 
+            <div style={{
+              position: 'absolute',
+              bottom: '0',
+              right: '0',
+              width: '12px',
+              height: '12px',
+              background: '#10b981',
+              border: '2px solid ' + colors.header,
+              borderRadius: '50%'
             }}></div>
           )}
         </div>
-        
+
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ 
-            fontWeight: 600, 
-            fontSize: '16px', 
+          <div style={{
+            fontWeight: 600,
+            fontSize: '16px',
             color: colors.headerText,
-            whiteSpace: 'nowrap', 
-            overflow: 'hidden', 
-            textOverflow: 'ellipsis' 
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
           }}>
             {displayUser?.displayName || displayUser?.username || 'User'}
           </div>
-          <div style={{ 
-            fontSize: '12px', 
+          <div style={{
+            fontSize: '12px',
             color: theme === 'dark' ? '#9ca3af' : '#6b7280',
             marginTop: '2px'
           }}>
@@ -147,7 +147,7 @@ export default function ChatHeader({
 
       {/* Action Buttons - Voice, Video, More Menu */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-        
+
         {/* Voice Call Button */}
         {otherUser && voiceCallState === 'idle' && videoCallState === 'idle' && (
           <button

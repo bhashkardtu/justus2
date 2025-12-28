@@ -7,7 +7,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
   if (m.isBot || m.senderId === 'bot') {
     return <BotMessage message={m} />;
   }
-  
+
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
@@ -19,7 +19,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
   const [showOriginal, setShowOriginal] = useState(false);
   const menuRef = useRef(null);
   const triggerRef = useRef(null);
-  
+
   // Load authenticated media for image and audio messages
   useEffect(() => {
     const loadMedia = async () => {
@@ -28,26 +28,26 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
           setImageLoading(true);
           setImageError(false);
           setBlobUrl(null); // Clear any previous blob URL
-          
+
           // Extract media ID from URL for caching
           const urlParts = m.content.split('/');
           const mediaId = urlParts[urlParts.length - 1].split('?')[0];
-          
+
           console.log('MessageItem: Loading authenticated media for ID:', mediaId, 'URL:', m.content);
           console.log('MessageItem: Is temporary?', isTemporary);
-          
+
           // Add a small delay to ensure authentication is properly set
           await new Promise(resolve => setTimeout(resolve, 100));
-          
+
           // Load media with authentication
           const authenticatedBlobUrl = await loadAuthenticatedMedia(m.content, mediaId);
           setBlobUrl(authenticatedBlobUrl);
           setImageLoading(false);
-          
+
           console.log('MessageItem: Successfully loaded authenticated media:', authenticatedBlobUrl);
         } catch (error) {
           console.error('MessageItem: Failed to load authenticated media:', error);
-          
+
           // If first attempt fails, try once more after a short delay
           if (retryCount === 0) {
             console.log('MessageItem: First attempt failed, trying automatic retry...');
@@ -67,7 +67,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
         setImageLoading(false);
       }
     };
-    
+
     loadMedia();
   }, [m.content, m.type, isTemporary, retryCount]);
 
@@ -81,7 +81,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
     if (menuOpen) document.addEventListener('click', onDocClick);
     return () => document.removeEventListener('click', onDocClick);
   }, [menuOpen]);
-  
+
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -89,11 +89,11 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
 
   const formatEditTime = (timestamp) => {
     const date = new Date(timestamp);
-    return date.toLocaleString([], { 
-      month: 'short', 
-      day: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -109,17 +109,16 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
 
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'} mb-3`}>
-      <div className={`max-w-md lg:max-w-lg relative group ${mine ? 'ml-12' : 'mr-12'}`}>
-        
+      <div className={`max-w-[85vw] sm:max-w-md lg:max-w-lg relative group ${mine ? 'ml-6 sm:ml-12' : 'mr-6 sm:mr-12'}`}>
+
         {/* Message Container */}
         <div className={`signal-bubble ${mine ? 'signal-bubble-sent' : 'signal-bubble-received'} ${isTemporary ? 'opacity-70' : ''}`}>
-          
+
           {/* Message Bubble Tail */}
-          <div className={`absolute w-4 h-4 transform rotate-45 ${
-            mine 
-              ? 'bg-gradient-to-r from-white to-white -right-2 bottom-4' 
+          <div className={`absolute w-4 h-4 transform rotate-45 ${mine
+              ? 'bg-gradient-to-r from-white to-white -right-2 bottom-4'
               : 'bg-white/80 -left-2 bottom-4 border-l border-b border-gray-200/50'
-          }`}></div>
+            }`}></div>
 
           {/* Message Header */}
           <div className={`flex items-center justify-between mb-3 signal-text-xs ${mine ? 'text-white/80' : 'text-gray-500'}`}>
@@ -206,7 +205,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                           <span className="text-[10px] uppercase tracking-wider opacity-70 font-bold">
                             {showOriginal ? 'Original' : 'Translated'}
                           </span>
-                          <button 
+                          <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setShowOriginal(!showOriginal);
@@ -225,7 +224,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                     )}
                   </div>
                 )}
-                
+
                 {m.type === 'image' && (
                   <div className="relative overflow-hidden rounded-2xl">
                     {imageLoading && !imageError && (
@@ -246,7 +245,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                             Debug: blobUrl={blobUrl ? 'present' : 'null'}, error={imageError.toString()}
                           </p>
                           <div className="space-y-2">
-                            <button 
+                            <button
                               className="px-4 py-2 bg-indigo-500 text-white text-xs rounded-xl hover:bg-indigo-600 transition-all duration-300 shadow-lg modern-button"
                               onClick={() => {
                                 const token = localStorage.getItem('token');
@@ -260,7 +259,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                               Open Image
                             </button>
                             {retryCount < 3 && (
-                              <button 
+                              <button
                                 className="block w-full px-3 py-2 bg-gray-500 text-white text-xs rounded-xl hover:bg-gray-600 transition-all duration-300 modern-button"
                                 onClick={() => {
                                   setImageError(false);
@@ -276,12 +275,11 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                         </div>
                       </div>
                     ) : (
-                      <img 
-                        src={blobUrl} 
+                      <img
+                        src={blobUrl}
                         alt="Shared image"
-                        className={`max-w-xs rounded-2xl cursor-pointer transition-all duration-300 hover:scale-105 shadow-lg ${
-                          imageLoading ? 'opacity-0 absolute' : 'opacity-100'
-                        }`}
+                        className={`max-w-[min(320px,75vw)] rounded-2xl cursor-pointer transition-all duration-300 hover:scale-105 shadow-lg ${imageLoading ? 'opacity-0 absolute' : 'opacity-100'
+                          }`}
                         onLoad={(e) => {
                           console.log('MessageItem: Image loaded successfully from blob URL');
                           setImageLoading(false);
@@ -297,7 +295,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                     )}
                   </div>
                 )}
-                
+
                 {m.type === 'audio' && (
                   <div className="w-full">
                     {imageError || !blobUrl ? (
@@ -307,7 +305,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
                           </svg>
                           <p className="text-xs mb-3 font-medium">Audio requires authentication</p>
-                          <button 
+                          <button
                             className="px-4 py-2 bg-indigo-500 text-white text-xs rounded-xl hover:bg-indigo-600 transition-colors shadow-lg"
                             onClick={() => {
                               const token = localStorage.getItem('token');
@@ -324,10 +322,10 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                       </div>
                     ) : (
                       <div className={`p-3 rounded-2xl ${mine ? 'bg-white/20' : 'bg-gray-100/80'}`}>
-                        <audio 
-                          controls 
-                          src={blobUrl} 
-                          className="w-full max-w-xs"
+                        <audio
+                          controls
+                          src={blobUrl}
+                          className="w-full max-w-[min(320px,75vw)]"
                           style={{ filter: mine ? 'invert(1) brightness(0.8)' : 'none' }}
                           onError={() => {
                             setImageError(true);
@@ -337,7 +335,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                     )}
                   </div>
                 )}
-                
+
                 {m.type && !['text', 'image', 'audio'].includes(m.type) && (
                   <div className={`text-sm flex items-center space-x-2 ${mine ? 'text-indigo-200' : 'text-gray-600'}`}>
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -352,7 +350,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
 
           {/* old action/status block moved inline above */}
         </div>
-        
+
         {/* Message Timestamp on Hover */}
         <div className={`timestamp-hover absolute ${mine ? 'left-0' : 'right-0'} top-0 pointer-events-none z-10`}>
           <div className={`px-3 py-2 bg-black/80 text-white text-xs rounded-xl backdrop-blur-sm border border-white/10 ${mine ? '-translate-x-full -ml-3' : 'translate-x-full ml-3'}`}>
