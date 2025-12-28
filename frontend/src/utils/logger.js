@@ -36,12 +36,16 @@ export const logger = {
 
 // Override global console in production
 if (!isDevelopment) {
-  const noop = () => {};
-  
-  window.console.log = noop;
-  window.console.info = noop;
-  window.console.warn = noop;
-  window.console.debug = noop;
+  const noop = () => { };
+
+  const methods = ['log', 'info', 'warn', 'debug', 'table', 'trace'];
+  methods.forEach(method => {
+    try {
+      window.console[method] = noop;
+    } catch (e) {
+      // Ignore errors if console is not available
+    }
+  });
   // Keep console.error for production error tracking
 }
 
