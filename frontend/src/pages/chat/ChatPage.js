@@ -51,7 +51,28 @@ const WALLPAPER_PRESETS = [
     key: 'forest',
     label: 'Evergreen',
     value: 'linear-gradient(135deg, #0f766e 0%, #14b8a6 50%, #22c55e 100%)'
-  }
+  },
+
+{
+  key: 'midnight',
+    label: 'Midnight Blue',
+      value: '#0F172A'
+},
+{
+  key: 'charcoal',
+    label: 'Deep Charcoal',
+      value: '#18181B'
+},
+{
+  key: 'slate',
+    label: 'Slate Grey',
+      value: '#334155'
+},
+{
+  key: 'black',
+    label: 'Pure Black',
+      value: '#000000'
+}
 ];
 
 export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwitcher, setShowContactSwitcher }) {
@@ -111,7 +132,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
   }, [showContactSwitcher, setShowContactSwitcher]);
 
   // Image upload via hook
-  const { uploading, uploadImage } = useImageUpload({
+  const { uploading, selectFile, uploadFile } = useImageUpload({
     userId: user.id,
     otherUserId: otherUserId || localStorage.getItem('otherUserId'),
     conversationId,
@@ -957,7 +978,8 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
           onTyping={onTyping}
           otherUser={otherUser}
           uploading={uploading}
-          uploadImage={uploadImage}
+          selectFile={selectFile}
+          uploadFile={uploadFile}
           recording={recording}
           startRecording={startRecording}
           stopRecording={stopRecording}
@@ -970,6 +992,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
           connectionStatus={connectionStatus}
           colors={colors}
           currentUserId={user.id}
+          theme={theme}
         />
       </div>
 

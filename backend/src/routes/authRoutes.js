@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, logout, getUsers, getUserById, verifyEmail, resendVerification, connectUser, uploadAvatar, getAvatar, avatarUploadMiddleware, updateProfile } from '../controllers/authController.js';
+import { register, login, refreshToken, logout, getUsers, getUserById, verifyEmail, resendVerification, connectUser, uploadAvatar, getAvatar, avatarUploadMiddleware, updateProfile } from '../controllers/authController.js';
 import { authenticateJWT } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
 
@@ -7,6 +7,7 @@ const router = express.Router();
 
 router.post('/register', authLimiter, register);
 router.post('/login', authLimiter, login);
+router.post('/refresh-token', refreshToken);
 router.post('/verify-email', authLimiter, verifyEmail);
 router.post('/resend-verification', authLimiter, resendVerification);
 router.post('/logout', logout);

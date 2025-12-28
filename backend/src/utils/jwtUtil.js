@@ -1,7 +1,11 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'justus-secure-key-for-jwt-token-signature-validation-2025';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const JWT_SECRET = process.env.JWT_SECRET;
+console.log('JWT_SECRET:', JWT_SECRET);
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET is not defined in environment variables.');
+}
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
 
 export const generateToken = (userId, username) => {
   return jwt.sign(

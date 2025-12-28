@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AudioMessage from '../messages/AudioMessage';
 import ImageMessage from '../messages/ImageMessage';
 import DocumentMessage from '../messages/DocumentMessage';
+import VideoMessage from '../messages/VideoMessage';
 import CallMessage from '../messages/CallMessage';
 import { fmtTime } from '../../../utils/format';
 
@@ -23,7 +24,7 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
     // Handle both populated (from backend) and id-only (temporary) replyTo
     let replyMessage = replyTo;
 
-    // If replyTo is just an ID string, find the message in the list
+    // If replyTo is just an ID string, find the message in list
     if (typeof replyTo === 'string') {
       replyMessage = allMessages.find(m => m.id === replyTo || m._id === replyTo);
       if (!replyMessage) return null;
@@ -41,6 +42,8 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
           return replyMessage.content;
         case 'image':
           return '📷 Image';
+        case 'video':
+          return '🎥 Video';
         case 'audio':
           return '🎤 Voice message';
         case 'document':
@@ -195,9 +198,10 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
                   )}
                 </div>
               )}
-              {msg.type === 'image' && <ImageMessage message={msg} />}
-              {msg.type === 'audio' && <AudioMessage message={msg} />}
-              {msg.type === 'document' && <DocumentMessage message={msg} />}
+              {msg.type === 'image' && <ImageMessage message={msg} mine={isOwn} />}
+              {msg.type === 'video' && <VideoMessage message={msg} mine={isOwn} />}
+              {msg.type === 'audio' && <AudioMessage message={msg} mine={isOwn} />}
+              {msg.type === 'document' && <DocumentMessage message={msg} mine={isOwn} />}
               {/* Mobile: Arrow-down button to open context menu */}
               {isOwn && (
                 <span

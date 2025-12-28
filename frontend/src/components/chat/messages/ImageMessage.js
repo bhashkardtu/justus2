@@ -73,13 +73,30 @@ export default function ImageMessage({ message, mine }) {
             onClick={() => window.open(imageUrl, '_blank')}
             onError={() => setError(true)}
           />
+          {message.temporary && (
+            <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center backdrop-blur-[1px]">
+              <div className="w-8 h-8 border-2 border-white/80 border-t-transparent rounded-full animate-spin mb-2"></div>
+              {message.metadata?.progress !== undefined && message.metadata.progress < 100 && (
+                <span className="text-white text-xs font-medium shadow-sm drop-shadow-md">
+                  {message.metadata.progress}%
+                </span>
+              )}
+              {message.metadata?.progress !== undefined && message.metadata.progress < 100 && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+                  <div
+                    className="h-full bg-green-500 transition-all duration-300"
+                    style={{ width: `${message.metadata.progress}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {message.temporary && (
-        <div className="flex items-center space-x-1">
-          <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin opacity-60"></div>
-          <span className="text-xs opacity-60">Sending...</span>
+      {message.metadata?.caption && (
+        <div className="text-sm mt-1 mb-1 px-1 break-words">
+          {message.metadata.caption}
         </div>
       )}
     </div>

@@ -8,6 +8,7 @@ import Message from '../models/Message.js';
 import Conversation from '../models/Conversation.js';
 import { generateToken } from '../utils/jwtUtil.js';
 import { sendVerificationEmail } from '../services/emailService.js';
+import RefreshToken from '../models/RefreshToken.js';
 
 // Create GridFS storage for avatars
 const avatarStorage = new GridFsStorage({
@@ -24,7 +25,7 @@ const avatarStorage = new GridFsStorage({
   }
 });
 
-export const avatarUpload = multer({ 
+export const avatarUpload = multer({
   storage: avatarStorage,
   fileFilter: (req, file, cb) => {
     // Only allow image files
@@ -46,30 +47,30 @@ const generateVerificationCode = () => {
 export const register = async (req, res) => {
   try {
     const { username, email, password, displayName } = req.body;
-    
+
     console.log(`Registration attempt for user: ${username}`);
-    
+
     if (!username || !email || !password) {
       return res.status(400).json({ message: 'All fields are required' });
     }
-    
+
     // Check if username or email exists
-    const existingUser = await User.findOne({ 
-      $or: [{ username: username.trim() }, { email: email.trim().toLowerCase() }] 
+    const existingUser = await User.findOne({
+      $or: [{ username: username.trim() }, { email: email.trim().toLowerCase() }]
     });
-    
+
     if (existingUser) {
       if (existingUser.username === username.trim()) {
         return res.status(409).json({ message: 'Username already exists' });
       }
       return res.status(409).json({ message: 'Email already registered' });
     }
-    
+
     const passwordHash = await bcrypt.hash(password, 10);
     const verificationCode = generateVerificationCode();
     const verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
     const inviteCode = crypto.randomBytes(4).toString('hex');
-    
+
     const user = new User({
       username: username.trim(),
       email: email.trim().toLowerCase(),
@@ -81,16 +82,16 @@ export const register = async (req, res) => {
       inviteCode,
       contacts: []
     });
-    
+
     const saved = await user.save();
-    
+
     // Send email
     await sendVerificationEmail(saved.email, saved.displayName, verificationCode);
 
     // Send System Message with Invite Link
     const systemId = '000000000000000000000000';
     const userId = saved._id.toString();
-    
+
     // Create conversation with System
     const key = systemId < userId ? `${systemId}:${userId}` : `${userId}:${systemId}`;
     let conversation = await Conversation.findOne({ key });
@@ -113,14 +114,14 @@ export const register = async (req, res) => {
       timestamp: new Date()
     });
     await systemMessage.save();
-    
+
     res.status(201).json({
       message: 'Registration successful. Please check your email for verification code.',
       userId: saved._id,
       email: saved.email,
       requiresVerification: true
     });
-    
+
   } catch (error) {
     console.error('Registration error:', error.message);
     res.status(500).json({
@@ -132,41 +133,58 @@ export const register = async (req, res) => {
 export const verifyEmail = async (req, res) => {
   try {
     const { email, code } = req.body;
-    
+
     const user = await User.findOne({ email: email.trim().toLowerCase() });
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     if (user.isVerified) {
       return res.status(400).json({ message: 'Email already verified' });
     }
-    
+
     if (user.verificationCode !== code) {
       return res.status(400).json({ message: 'Invalid verification code' });
     }
-    
+
     if (user.verificationCodeExpires < Date.now()) {
       return res.status(400).json({ message: 'Verification code expired' });
     }
-    
+
     user.isVerified = true;
     user.verificationCode = undefined;
     user.verificationCodeExpires = undefined;
     await user.save();
-    
+
+    // Auto login after verification
     // Auto login after verification
     const token = generateToken(user._id.toString(), user.username);
-    
+    const refreshToken = crypto.randomBytes(40).toString('hex');
+    const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    await new RefreshToken({
+      token: refreshToken,
+      user: user._id,
+      expiryDate
+    }).save();
+
     res.cookie('auth-token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 15 * 60 * 1000, // 15 mins
       sameSite: 'lax',
       path: '/'
     });
-    
+
+    res.cookie('refresh-token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: 'lax',
+      path: '/'
+    });
+
     res.json({
       message: 'Email verified successfully',
       token,
@@ -178,7 +196,7 @@ export const verifyEmail = async (req, res) => {
         avatarUrl: user.avatarUrl
       }
     });
-    
+
   } catch (error) {
     console.error('Verification error:', error.message);
     res.status(500).json({ message: 'Verification failed' });
@@ -188,26 +206,26 @@ export const verifyEmail = async (req, res) => {
 export const resendVerification = async (req, res) => {
   try {
     const { email } = req.body;
-    
+
     const user = await User.findOne({ email: email.trim().toLowerCase() });
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     if (user.isVerified) {
       return res.status(400).json({ message: 'Email already verified' });
     }
-    
+
     const verificationCode = generateVerificationCode();
     user.verificationCode = verificationCode;
     user.verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000);
     await user.save();
-    
+
     await sendVerificationEmail(user.email, user.displayName, verificationCode);
-    
+
     res.json({ message: 'Verification code resent' });
-    
+
   } catch (error) {
     console.error('Resend error:', error.message);
     res.status(500).json({ message: 'Failed to resend code' });
@@ -217,27 +235,27 @@ export const resendVerification = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { username, password } = req.body; // username can be email or username
-    
+
     if (!username || !password) {
       return res.status(400).json({ message: 'Username/Email and password are required' });
     }
-    
+
     // Allow login with email or username
     const user = await User.findOne({
       $or: [{ username: username.trim() }, { email: username.trim().toLowerCase() }]
     });
-    
+
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-    
+
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-    
+
     if (!user.isVerified) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         message: 'Please verify your email first',
         requiresVerification: true,
         email: user.email
@@ -249,17 +267,33 @@ export const login = async (req, res) => {
       user.inviteCode = crypto.randomBytes(4).toString('hex');
       await user.save();
     }
-    
+
     const token = generateToken(user._id.toString(), user.username);
-    
+    const refreshToken = crypto.randomBytes(40).toString('hex');
+    const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    await new RefreshToken({
+      token: refreshToken,
+      user: user._id,
+      expiryDate
+    }).save();
+
     res.cookie('auth-token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 15 * 60 * 1000, // 15 mins
       sameSite: 'lax',
       path: '/'
     });
-    
+
+    res.cookie('refresh-token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: 'lax',
+      path: '/'
+    });
+
     res.json({
       token,
       user: {
@@ -276,9 +310,59 @@ export const login = async (req, res) => {
   }
 };
 
+export const refreshToken = async (req, res) => {
+  try {
+    const refreshToken = req.cookies['refresh-token'];
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'Refresh Token Required' });
+    }
+
+    const tokenDoc = await RefreshToken.findOne({ token: refreshToken }).populate('user');
+    if (!tokenDoc || tokenDoc.revoked || tokenDoc.expiryDate < Date.now()) {
+      return res.status(403).json({ message: 'Refresh Token Expired or Invalid' });
+    }
+
+    const user = tokenDoc.user;
+    const newToken = generateToken(user._id.toString(), user.username);
+
+    // Rotate refresh token
+    const newRefreshToken = crypto.randomBytes(40).toString('hex');
+    tokenDoc.revoked = true;
+    tokenDoc.replacedByToken = newRefreshToken;
+    await tokenDoc.save();
+
+    await new RefreshToken({
+      token: newRefreshToken,
+      user: user._id,
+      expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    }).save();
+
+    res.cookie('auth-token', newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 15 * 60 * 1000,
+      sameSite: 'lax',
+      path: '/'
+    });
+
+    res.cookie('refresh-token', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: 'lax',
+      path: '/'
+    });
+
+    res.json({ token: newToken });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(500).json({ message: 'Failed to refresh token' });
+  }
+};
+
 export const logout = async (req, res) => {
   try {
-    // Clear the auth cookie
+    // Clear the auth cookies
     res.cookie('auth-token', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -286,7 +370,14 @@ export const logout = async (req, res) => {
       sameSite: 'lax',
       path: '/'
     });
-    
+    res.cookie('refresh-token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 0,
+      sameSite: 'lax',
+      path: '/'
+    });
+
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
     console.error('Logout error:', error.message);
@@ -318,11 +409,13 @@ export const connectUser = async (req, res) => {
 
     // Check if already connected
     if (currentUser.contacts.some(c => c.toString() === targetUser._id.toString())) {
-      return res.status(200).json({ message: 'Already connected', user: {
-        id: targetUser._id,
-        username: targetUser.username,
-        displayName: targetUser.displayName
-      }});
+      return res.status(200).json({
+        message: 'Already connected', user: {
+          id: targetUser._id,
+          username: targetUser.username,
+          displayName: targetUser.displayName
+        }
+      });
     }
 
     // Add to contacts (bidirectional)
@@ -332,7 +425,7 @@ export const connectUser = async (req, res) => {
     await currentUser.save();
     await targetUser.save();
 
-    res.json({ 
+    res.json({
       message: 'Connected successfully',
       user: {
         id: targetUser._id,
@@ -351,7 +444,7 @@ export const getUsers = async (req, res) => {
   try {
     // Only return contacts + System User
     const currentUser = await User.findById(req.userId).populate('contacts', 'username displayName _id avatarUrl');
-    
+
     if (!currentUser) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -368,7 +461,7 @@ export const getUsers = async (req, res) => {
       username: 'system',
       displayName: 'JustUs System'
     };
-    
+
     res.json([systemUser, ...contacts]);
   } catch (error) {
     console.error('Get users error:', error.message);
@@ -382,11 +475,11 @@ export const getUserById = async (req, res) => {
   try {
     const { userId } = req.params;
     const user = await User.findById(userId, 'username displayName email avatarUrl preferredLanguage');
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     res.json({
       id: user._id.toString(),
       username: user.username,
@@ -452,7 +545,7 @@ export const getAvatar = async (req, res) => {
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
     res.set('Content-Type', files.contentType || 'image/jpeg');
     res.set('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
-    
+
     const downloadStream = bucket.openDownloadStream(objectId);
     downloadStream.pipe(res);
   } catch (error) {
@@ -465,21 +558,21 @@ export const updateProfile = async (req, res) => {
   try {
     const userId = req.userId;
     const { displayName, preferredLanguage } = req.body;
-    
+
     const updates = {};
     if (displayName) updates.displayName = displayName;
     if (preferredLanguage) updates.preferredLanguage = preferredLanguage;
-    
+
     const user = await User.findByIdAndUpdate(
       userId,
       { $set: updates },
       { new: true }
     ).select('-passwordHash -verificationCode -verificationCodeExpires');
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     res.json({
       message: 'Profile updated successfully',
       user: {

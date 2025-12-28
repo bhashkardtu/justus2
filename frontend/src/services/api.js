@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-const api = axios.create({ 
+const api = axios.create({
     baseURL: API_URL,
     withCredentials: true, // Important: This ensures cookies are sent with requests
     headers: {
@@ -10,7 +10,76 @@ const api = axios.create({
     }
 });
 
-// Add request interceptor to ensure token is always included for backwards compatibility
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+    failedQueue.forEach(prom => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
+    });
+    failedQueue = [];
+};
+
+// Response interceptor with refresh logic
+const responseInterceptor = (apiInstance) => async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+        if (isRefreshing) {
+            return new Promise(function (resolve, reject) {
+                failedQueue.push({ resolve, reject });
+            }).then(token => {
+                originalRequest.headers['Authorization'] = 'Bearer ' + token;
+                return apiInstance(originalRequest);
+            }).catch(err => {
+                return Promise.reject(err);
+            });
+        }
+
+        originalRequest._retry = true;
+        isRefreshing = true;
+
+        try {
+            // Call refresh endpoint using raw axios to avoid interceptors
+            console.log('Refeshing token...');
+            const { data } = await axios.post(`${API_URL}/api/auth/refresh-token`, {}, {
+                withCredentials: true
+            });
+
+            const { token } = data;
+
+            // Update token
+            setAuthToken(token);
+
+            // Update pending requests
+            originalRequest.headers['Authorization'] = 'Bearer ' + token;
+            processQueue(null, token);
+
+            return apiInstance(originalRequest);
+        } catch (err) {
+            processQueue(err, null);
+
+            // Logout
+            console.log('Refresh failed, logging out');
+            localStorage.removeItem('token');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('username');
+            delete api.defaults.headers.common['Authorization'];
+            window.location.href = '/signin';
+
+            return Promise.reject(err);
+        } finally {
+            isRefreshing = false;
+        }
+    }
+    return Promise.reject(error);
+};
+
+// Add request interceptor to ensure token is always included
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
@@ -24,68 +93,42 @@ api.interceptors.request.use(
     }
 );
 
-// Add response interceptor to handle 401 errors (expired/invalid token)
+// Add response interceptor
 api.interceptors.response.use(
     (response) => {
         return response;
     },
-    (error) => {
-        // Check if the error is a 401 Unauthorized
-        if (error.response && error.response.status === 401) {
-            console.log('401 Unauthorized - Token expired or invalid, redirecting to sign in');
-            
-            // Clear authentication data
-            localStorage.removeItem('token');
-            localStorage.removeItem('userId');
-            localStorage.removeItem('username');
-            delete api.defaults.headers.common['Authorization'];
-            
-            // Redirect to sign in page
-            window.location.href = '/signin';
-        }
-        return Promise.reject(error);
-    }
+    responseInterceptor(api)
 );
 
 // Create a function to get a new axios instance with the current token
 export function getAuthenticatedApi() {
     const token = localStorage.getItem('token');
-    const authenticatedApi = axios.create({ 
+    const authenticatedApi = axios.create({
         baseURL: API_URL,
         withCredentials: true, // Ensure cookies are sent
         headers: {
             'ngrok-skip-browser-warning': 'true' // Skip ngrok warning page
         }
     });
-    
+
     if (token) {
         authenticatedApi.defaults.headers.common['Authorization'] = 'Bearer ' + token;
-        console.log('Created authenticated API instance with token');
     }
-    
+
     // Add 401 response interceptor to this instance too
     authenticatedApi.interceptors.response.use(
         (response) => response,
-        (error) => {
-            if (error.response && error.response.status === 401) {
-                console.log('401 Unauthorized - Token expired or invalid, redirecting to sign in');
-                localStorage.removeItem('token');
-                localStorage.removeItem('userId');
-                localStorage.removeItem('username');
-                window.location.href = '/signin';
-            }
-            return Promise.reject(error);
-        }
+        responseInterceptor(authenticatedApi)
     );
-    
+
     return authenticatedApi;
 }
 
 export function setAuthToken(token) {
     console.log('Setting auth token:', token ? 'present' : 'none');
-    console.log('Current auth header:', api.defaults.headers.common['Authorization'] || 'none');
 
-	if (token) {
+    if (token) {
         api.defaults.headers.common['Authorization'] = 'Bearer ' + token;
         // Also store in localStorage for the interceptor
         localStorage.setItem('token', token);
@@ -93,8 +136,6 @@ export function setAuthToken(token) {
         delete api.defaults.headers.common['Authorization'];
         localStorage.removeItem('token');
     }
-	
-	console.log('Auth header after setting:', api.defaults.headers.common['Authorization'] || 'none');
 }
 
 export default api;

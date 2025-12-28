@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -6,7 +7,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
+
 import { configureSocketIO } from './websocket/socketHandler.js';
 import authRoutes from './routes/authRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
@@ -21,7 +22,7 @@ import { apiLimiter } from './middleware/rateLimiter.js';
 import path from 'path';
 import { fileURLToPath } from "url";
 
-dotenv.config();
+
 
 const app = express();
 const httpServer = createServer(app);
@@ -42,7 +43,21 @@ console.log('Allowed CORS Origins:', allowedOrigins);
 
 // Security headers
 app.use(helmet({
-  contentSecurityPolicy: false, // Disable for WebSocket compatibility
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: ["'self'", "ws:", "wss:", "http:", "https:"], // Allow WebSockets and API calls
+      imgSrc: ["'self'", "data:", "blob:", "https:", "http:"], // Allow images from any source (avatars)
+      mediaSrc: ["'self'", "data:", "blob:", "https:", "http:"], // Allow video/audio
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Needed for development/React
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"], // Prevent clickjacking
+    },
+  },
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" } // Allow cross-origin image loading
 }));
@@ -50,9 +65,15 @@ app.use(helmet({
 // CORS configuration with function to handle dynamic origins
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or Postman)
-    if (!origin) return callback(null, true);
-    
+    // Block requests with no origin (prevent sandboxed iframe attacks)
+    // Only allow no origin in development for testing
+    if (!origin) {
+      if (process.env.NODE_ENV !== 'production') {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    }
+
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -87,12 +108,9 @@ if (NODE_ENV === 'development') {
 }
 
 // Apply rate limiting to all API routes (skip in development)
-if (NODE_ENV === 'production') {
-  app.use('/api/', apiLimiter);
-  console.log('✓ Rate limiting enabled for production');
-} else {
-  console.log('⚠ Rate limiting disabled for development');
-}
+// Apply rate limiting to all API routes
+app.use('/api/', apiLimiter);
+console.log('✓ Rate limiting enabled');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -138,7 +156,7 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/justus
 const PORT = process.env.PORT || 5000;
 
 console.log(`Starting server in ${NODE_ENV} mode...`);
-console.log("CONNECTION STRING FOR MONGO :  ",MONGODB_URI);
+console.log("CONNECTION STRING FOR MONGO :  ", MONGODB_URI);
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
@@ -148,37 +166,37 @@ mongoose.connect(MONGODB_URI, {
   socketTimeoutMS: 45000,
   serverSelectionTimeoutMS: 5000
 })
-.then(async () => {
-  console.log('✓ Connected to MongoDB');
-  
-  // Health check on startup
-  try {
-    const adminDb = mongoose.connection.db.admin();
-    const pingResult = await adminDb.ping();
-    console.log('✓ MongoDB ping successful:', pingResult);
-    
-    const collections = await mongoose.connection.db.listCollections().toArray();
-    console.log(`✓ Available collections: ${collections.map(c => c.name).join(', ')}`);
-    
-    // Check GridFS files
-    const filesCollection = mongoose.connection.db.collection('fs.files');
-    const fileCount = await filesCollection.countDocuments();
-    console.log(`✓ GridFS files count: ${fileCount}`);
-  } catch (error) {
-    console.error('✗ Startup health check failed:', error.message);
-  }
-  
-  // Start server
-  httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`✓ Server is running on port ${PORT}`);
-    console.log(`✓ Environment: ${NODE_ENV}`);
-    console.log(`✓ Allowed Origins: ${allowedOrigins.join(', ')}`);
+  .then(async () => {
+    console.log('✓ Connected to MongoDB');
+
+    // Health check on startup
+    try {
+      const adminDb = mongoose.connection.db.admin();
+      const pingResult = await adminDb.ping();
+      console.log('✓ MongoDB ping successful:', pingResult);
+
+      const collections = await mongoose.connection.db.listCollections().toArray();
+      console.log(`✓ Available collections: ${collections.map(c => c.name).join(', ')}`);
+
+      // Check GridFS files
+      const filesCollection = mongoose.connection.db.collection('fs.files');
+      const fileCount = await filesCollection.countDocuments();
+      console.log(`✓ GridFS files count: ${fileCount}`);
+    } catch (error) {
+      console.error('✗ Startup health check failed:', error.message);
+    }
+
+    // Start server
+    httpServer.listen(PORT, '0.0.0.0', () => {
+      console.log(`✓ Server is running on port ${PORT}`);
+      console.log(`✓ Environment: ${NODE_ENV}`);
+      console.log(`✓ Allowed Origins: ${allowedOrigins.join(', ')}`);
+    });
+  })
+  .catch(err => {
+    console.error('✗ MongoDB connection error:', err);
+    process.exit(1);
   });
-})
-.catch(err => {
-  console.error('✗ MongoDB connection error:', err);
-  process.exit(1);
-});
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {

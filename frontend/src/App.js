@@ -201,9 +201,7 @@ export default function App() {
           }`}>
           <div className="max-w-6xl mx-auto py-4 px-6 flex justify-between items-center">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">JU</span>
-              </div>
+              <img src="/logo192.png" alt="JustUs Logo" className="w-10 h-10 rounded-lg object-contain" />
               <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>JustUs</h1>
             </div>
             <div className="flex items-center space-x-4">

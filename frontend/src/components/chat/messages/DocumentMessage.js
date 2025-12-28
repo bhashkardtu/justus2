@@ -1,7 +1,7 @@
 import React from 'react';
 import { loadAuthenticatedDocument } from '../../../utils/mediaLoader';
 
-export default function DocumentMessage({ message }) {
+export default function DocumentMessage({ message, mine }) {
   const filename = message.metadata?.filename || 'document.pdf';
   const fileUrl = message.content;
 
@@ -24,97 +24,70 @@ export default function DocumentMessage({ message }) {
   };
 
   return (
-    <div style={{
-      border: '1px solid #ddd',
-      borderRadius: '8px',
-      padding: '12px',
-      background: '#f9fafb',
-      maxWidth: '300px'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {/* PDF Icon */}
-        <div style={{
-          background: '#dc2626',
-          borderRadius: '8px',
-          padding: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="white"
-            style={{ width: '32px', height: '32px' }}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-            />
+    <div className={`relative group overflow-hidden rounded-xl border ${mine ? 'border-green-200 bg-green-50' : 'border-gray-100 bg-white'} shadow-sm transition-all hover:shadow-md max-w-sm`}>
+      {/* Main Content Area - Click to View */}
+      <div
+        className="flex items-center p-3 gap-3 cursor-pointer hover:bg-black/5 transition-colors"
+        onClick={handleView}
+      >
+        {/* Modern File Icon */}
+        <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${mine ? 'bg-green-100 text-green-600' : 'bg-red-50 text-red-500'}`}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+            <path fillRule="evenodd" d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0016.5 9h-1.875a1.875 1.875 0 01-1.875-1.875V5.25A3.75 3.75 0 009 1.5H5.625zM7.5 15a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5A.75.75 0 017.5 15zm.75 2.25a.75.75 0 000 1.5H12a.75.75 0 000-1.5H8.25z" clipRule="evenodd" />
+            <path d="M12.971 1.816A5.23 5.23 0 0114.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 013.434 1.279 9.768 9.768 0 00-6.963-6.963z" />
           </svg>
         </div>
 
-        {/* File Info */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontWeight: 600,
-            fontSize: '0.9rem',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}>
+        {/* File Details */}
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm text-gray-900 truncate">
             {filename}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>
-            PDF Document
+          </p>
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span>PDF</span>
+            {/* Show size if available in metadata, or just a dot separator if we had more info */}
+            {message.metadata?.fileSize && (
+              <>
+                <span>•</span>
+                <span>{message.metadata.fileSize}</span>
+              </>
+            )}
           </div>
         </div>
+
+        {/* Download Action */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDownload();
+          }}
+          className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+          title="Download"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M12 9v7.5m0 0l-3-3m3 3l3-3" />
+          </svg>
+        </button>
       </div>
 
-      {/* Action Buttons */}
-      <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-        <button
-          onClick={handleView}
-          style={{
-            flex: 1,
-            padding: '8px',
-            background: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'background 0.2s'
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = '#2563eb'}
-          onMouseLeave={e => e.currentTarget.style.background = '#3b82f6'}
-        >
-          View
-        </button>
-        <button
-          onClick={handleDownload}
-          style={{
-            flex: 1,
-            padding: '8px',
-            background: '#10b981',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'background 0.2s'
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = '#059669'}
-          onMouseLeave={e => e.currentTarget.style.background = '#10b981'}
-        >
-          Download
-        </button>
-      </div>
+      {/* Modern Progress Bar (Integrated) */}
+      {message.temporary && message.metadata?.progress !== undefined && message.metadata.progress < 100 && (
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-100">
+          <div
+            className="h-full bg-blue-500 transition-all duration-300 ease-out"
+            style={{ width: `${message.metadata.progress}%` }}
+          />
+        </div>
+      )}
+
+      {/* Caption Area - Clean and Minimal */}
+      {message.metadata?.caption && (
+        <div className="px-3 pb-3 pt-0">
+          <p className="text-sm text-gray-700 leading-relaxed break-words border-t border-black/5 pt-2 mt-1">
+            {message.metadata.caption}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
