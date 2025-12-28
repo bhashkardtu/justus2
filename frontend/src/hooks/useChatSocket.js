@@ -60,7 +60,16 @@ export default function useChatSocket({
       setMessages(prev => {
         const filtered = prev.filter(msg => {
           if (!msg.temporary) return true;
-          if (msg.type === message.type && msg.content === message.content && msg.senderId === message.senderId) {
+
+          // Match by Nonce (Best for Encrypted/E2EE)
+          if (msg.encryptionNonce && message.encryptionNonce && msg.encryptionNonce === message.encryptionNonce) {
+            console.log('[Frontend] Matched temp message by Nonce:', msg.id);
+            return false;
+          }
+
+          // Match by Content (Fallback for Plaintext)
+          if (!msg.encryptionNonce && msg.type === message.type && msg.content === message.content && msg.senderId === message.senderId) {
+            console.log('[Frontend] Matched temp message by Content:', msg.id);
             return false;
           }
           return true;
@@ -99,6 +108,10 @@ export default function useChatSocket({
               onEdited: (editedMessage) => {
                 setMessages(prev => prev.map(msg => msg.id === editedMessage.id ? { ...msg, content: editedMessage.content } : msg));
               },
+              onUpdated: (updatedMessage) => {
+                console.log('[Frontend] Message Updated (Translation):', updatedMessage.id);
+                setMessages(prev => prev.map(msg => msg.id === updatedMessage.id ? { ...msg, ...updatedMessage } : msg));
+              },
               onUserStatus: (statusData) => {
                 if (onUserStatusChange) {
                   onUserStatusChange(statusData);
@@ -128,7 +141,7 @@ export default function useChatSocket({
 
   useEffect(() => {
     if (!token) return;
-    
+
     // Connect once when token changes
     reconnectWebSocket();
 
@@ -146,7 +159,7 @@ export default function useChatSocket({
 
     return () => {
       if (healthIntervalRef.current) clearInterval(healthIntervalRef.current);
-      try { disconnectSocket(); } catch {}
+      try { disconnectSocket(); } catch { }
       clearTimeout(typingTimeoutRef.current);
     };
   }, [token]);

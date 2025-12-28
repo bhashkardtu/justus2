@@ -16,7 +16,7 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
   const mine = me === m.senderId;
   const isTemporary = m.temporary === true;
   const [menuOpen, setMenuOpen] = useState(false);
-  const [showOriginal, setShowOriginal] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(true);
   const menuRef = useRef(null);
   const triggerRef = useRef(null);
 
@@ -212,29 +212,26 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
             ) : (
               <>
                 {m.type === 'text' && (
-                  <div className="whitespace-pre-wrap break-words leading-relaxed font-medium">
-                    {m.translatedText ? (
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center justify-between gap-2 mb-1 border-b border-white/10 pb-1">
-                          <span className="text-[10px] uppercase tracking-wider opacity-70 font-bold">
-                            {showOriginal ? 'Original' : 'Translated'}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowOriginal(!showOriginal);
-                            }}
-                            className="text-[10px] underline opacity-70 hover:opacity-100 transition-opacity"
-                          >
-                            {showOriginal ? 'Show Translation' : 'Show Original'}
-                          </button>
-                        </div>
-                        <div className="text-base">
-                          {showOriginal ? m.content : m.translatedText}
-                        </div>
+                  <div className="whitespace-pre-wrap break-words leading-relaxed font-medium min-w-[60px]">
+                    {/* Main Content (Original or Translated based on state) */}
+                    <div>
+                      {showOriginal ? m.content : m.translatedText}
+                    </div>
+
+                    {/* Translation Toggle */}
+                    {m.translatedText && (
+                      <div className="mt-1 flex justify-end">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowOriginal(!showOriginal);
+                          }}
+                          className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider opacity-60 hover:opacity-100 transition-opacity bg-black/10 hover:bg-black/20 px-2 py-1 rounded-md"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
+                          {showOriginal ? 'Translate' : 'Original'}
+                        </button>
                       </div>
-                    ) : (
-                      m.content
                     )}
                   </div>
                 )}

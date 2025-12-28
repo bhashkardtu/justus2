@@ -62,16 +62,16 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
       setRecording(true);
       setTranscript('');
       transcriptRef.current = ''; // Reset ref too
-      
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStreamRef.current = stream;
-      
+
       // Start audio recording
       const mr = new MediaRecorder(stream);
       mediaRecorderRef.current = mr;
       audioChunksRef.current = [];
       mr.ondataavailable = e => audioChunksRef.current.push(e.data);
-      
+
       // Start speech recognition
       if (recognitionRef.current) {
         console.log('[VoiceMessage] Starting speech recognition...');
@@ -81,7 +81,7 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
         console.warn('Translation will not work without transcript.');
         console.warn('Use Chrome or Edge browser for Speech Recognition support.');
       }
-      
+
       mr.onstop = async () => {
         // Stop speech recognition
         if (recognitionRef.current) {
@@ -93,12 +93,12 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
         console.log('[VoiceMessage] Recording stopped. Transcript:', capturedTranscript || '(empty)');
 
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        
+
         // Enhance transcription with AI if available
         let finalTranscript = capturedTranscript;
         let translatedTranscript = '';
         let targetLanguage = 'en';
-        
+
         if (finalTranscript) {
           console.log('[VoiceTranslation] Starting transcript processing:', finalTranscript);
           setTranscribing(true);
@@ -165,23 +165,23 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
           };
           console.log('[VoiceTranslation] Message metadata:', tempMessage.metadata);
           setMessages(prev => [...prev, tempMessage]);
-          const success = sendSocketMessage({ 
-            receiverId: otherUserId || 'other', 
-            type: 'audio', 
-            content: url, 
-            conversationId, 
+          const success = sendSocketMessage({
+            receiverId: otherUserId || 'other',
+            type: 'audio',
+            content: url,
+            conversationId,
             senderId: userId,
             metadata: finalTranscript ? { transcript: finalTranscript, translatedTranscript: translatedTranscript || undefined } : null
           });
           if (!success) {
             try {
-              await authenticatedApi.post('/api/chat/messages', { 
-                type: 'audio', 
-                content: url, 
-                receiverId: otherUserId, 
+              await authenticatedApi.post('/api/chat/messages', {
+                type: 'audio',
+                content: url,
+                receiverId: otherUserId,
                 conversationId,
-                metadata: finalTranscript ? { 
-                  transcript: finalTranscript, 
+                metadata: finalTranscript ? {
+                  transcript: finalTranscript,
                   translatedTranscript: translatedTranscript || undefined,
                   targetLanguage: targetLanguage || 'en'
                 } : null
@@ -211,8 +211,12 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && recording) {
-      mediaRecorderRef.current.stop();
+    const mr = mediaRecorderRef.current;
+    if (mr && mr.state === 'recording') {
+      console.log('[VoiceMessage] Stopping recording...');
+      mr.stop();
+    } else {
+      console.warn('[VoiceMessage] stopRecording called but state was:', mr?.state);
     }
   };
 
@@ -226,11 +230,11 @@ export default function useVoiceMessage({ userId, otherUserId, conversationId, s
     }
   }, []);
 
-  return { 
-    recording, 
-    startRecording, 
-    stopRecording, 
+  return {
+    recording,
+    startRecording,
+    stopRecording,
     transcript: transcript.trim(),
-    transcribing 
+    transcribing
   };
 }

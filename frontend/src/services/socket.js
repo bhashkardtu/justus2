@@ -7,7 +7,7 @@ const WS_URL = process.env.REACT_APP_WS_URL || 'http://localhost:5000';
 let socket = null;
 let userPublicKeys = {}; // Cache of userId -> publicKey
 
-export function connectSocket(token, onMessage, onConnected, handlers = {}){
+export function connectSocket(token, onMessage, onConnected, handlers = {}) {
   if (socket && socket.connected) {
     console.log('WebSocket already connected');
     // Call onConnected immediately if we're already connected
@@ -56,6 +56,12 @@ export function connectSocket(token, onMessage, onConnected, handlers = {}){
   socket.on('messages.edited', (data) => {
     console.log('Message edited:', data);
     if (handlers.onEdited) handlers.onEdited(data);
+  });
+
+  // Listen for message updates (translations etc)
+  socket.on('message.updated', (data) => {
+    console.log('Message updated:', data);
+    if (handlers.onUpdated) handlers.onUpdated(data);
   });
 
   // Listen for deleted messages
@@ -115,24 +121,24 @@ export function connectSocket(token, onMessage, onConnected, handlers = {}){
   });
 }
 
-export function sendSocketMessage(message){
+export function sendSocketMessage(message) {
   if (!socket) {
     console.error('Cannot send message - Socket not initialized');
     return false;
   }
-  
+
   if (!socket.connected) {
     console.error('Cannot send message - Socket not connected');
     return false;
   }
-  
+
   let eventName = 'chat.send';
   if (message.type === 'delete') eventName = 'chat.delete';
   else if (message.type === 'typing') eventName = 'chat.typing';
   else if (message.id && message.type === 'text') eventName = 'chat.edit';
-  
+
   console.log('Sending message with event:', eventName, ':', message);
-  
+
   try {
     socket.emit(eventName, message);
     console.log('Message sent successfully');
@@ -150,7 +156,7 @@ export function sendSocketMessage(message){
 export function exchangePublicKey(keyPair) {
   if (!socket || !socket.connected) {
     console.warn('Socket not connected yet, will retry key exchange when connected');
-    
+
     // Wait for socket to connect and retry
     const retryExchange = () => {
       if (socket && socket.connected) {
@@ -164,7 +170,7 @@ export function exchangePublicKey(keyPair) {
         }
       }
     };
-    
+
     // Retry after a short delay
     setTimeout(retryExchange, 1000);
     return false;
@@ -246,7 +252,7 @@ export function decryptMessage(message, senderPublicKey, receiverSecretKey) {
   }
 }
 
-export function disconnectSocket(){
+export function disconnectSocket() {
   if (socket) {
     try {
       console.log('Disconnecting Socket.IO...');

@@ -53,26 +53,26 @@ const WALLPAPER_PRESETS = [
     value: 'linear-gradient(135deg, #0f766e 0%, #14b8a6 50%, #22c55e 100%)'
   },
 
-{
-  key: 'midnight',
+  {
+    key: 'midnight',
     label: 'Midnight Blue',
-      value: '#0F172A'
-},
-{
-  key: 'charcoal',
+    value: '#0F172A'
+  },
+  {
+    key: 'charcoal',
     label: 'Deep Charcoal',
-      value: '#18181B'
-},
-{
-  key: 'slate',
+    value: '#18181B'
+  },
+  {
+    key: 'slate',
     label: 'Slate Grey',
-      value: '#334155'
-},
-{
-  key: 'black',
+    value: '#334155'
+  },
+  {
+    key: 'black',
     label: 'Pure Black',
-      value: '#000000'
-}
+    value: '#000000'
+  }
 ];
 
 export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwitcher, setShowContactSwitcher }) {
@@ -566,16 +566,29 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
 
       setEditingMessage(null);
     } else {
+      // Get receiver's public key for encryption
+      const receiverPublicKey = encryption.getPublicKeyForUser(targetUserId);
+      let encryptedData = null;
+      let messageToSend = null;
+
+      if (receiverPublicKey && encryption.getKeyPair()) {
+        // Encrypt the message BEFORE creating temp message
+        encryptedData = encryption.encryptMessage(text.trim(), receiverPublicKey);
+      }
+
       // Create a temporary message object for optimistic UI update
       const tempMessage = {
         id: 'temp-' + Date.now(), // Temporary ID
         type: 'text',
-        content: text.trim(),
+        content: text.trim(), // Always show plaintext locally
         senderId: currentUserId,
         receiverId: targetUserId,
         conversationId,
         timestamp: new Date().toISOString(),
         temporary: true, // Mark as temporary
+        // Store encryption details in temp message for matching
+        encryptionNonce: encryptedData?.nonce,
+        ciphertext: encryptedData?.ciphertext,
         replyTo: replyingTo ? {
           id: replyingTo.id,
           senderId: replyingTo.senderId,
@@ -588,49 +601,27 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
       // Add message immediately to UI (optimistic update)
       setMessages(prev => [...prev, tempMessage]);
 
-      // Always scroll to bottom when user sends a message
-      setTimeout(() => {
-        scrollToBottom();
-        setUserScrolledUp(false);
-      }, 100);
+      /* ... scroll logic ... */
 
-      // Get receiver's public key for encryption
-      const receiverPublicKey = encryption.getPublicKeyForUser(targetUserId);
-      let messageToSend;
-
-      if (receiverPublicKey && encryption.getKeyPair()) {
-        // Encrypt the message
-        const encrypted = encryption.encryptMessage(text.trim(), receiverPublicKey);
-        if (encrypted) {
-          messageToSend = {
-            receiverId: targetUserId,
-            type: 'text',
-            ciphertext: encrypted.ciphertext,
-            nonce: encrypted.nonce,
-            conversationId,
-            senderId: currentUserId,
-            replyTo: replyingTo?.id || null,
-            plaintext: text.trim() // Send plaintext for server-side translation (optional)
-          };
-          console.log('[Frontend] Sending Encrypted Message:', {
-            ...messageToSend,
-            ciphertext: '***',
-            plaintext: messageToSend.plaintext // Log plaintext to verify it's being sent
-          });
-        } else {
-          // Fallback to plaintext if encryption fails
-          messageToSend = {
-            receiverId: targetUserId,
-            type: 'text',
-            content: text.trim(),
-            conversationId,
-            senderId: currentUserId,
-            replyTo: replyingTo?.id || null
-          };
-          console.warn('[Frontend] Encryption failed, sending as plaintext');
-        }
+      // Construct the actual payload
+      if (encryptedData) {
+        messageToSend = {
+          receiverId: targetUserId,
+          type: 'text',
+          ciphertext: encryptedData.ciphertext,
+          nonce: encryptedData.nonce,
+          conversationId,
+          senderId: currentUserId,
+          replyTo: replyingTo?.id || null,
+          plaintext: text.trim() // Send plaintext for server-side translation
+        };
+        console.log('[Frontend] Sending Encrypted Message:', {
+          ...messageToSend,
+          ciphertext: '***',
+          plaintext: messageToSend.plaintext
+        });
       } else {
-        // No public key or keypair available, send as plaintext
+        // Fallback to plaintext
         messageToSend = {
           receiverId: targetUserId,
           type: 'text',
@@ -641,6 +632,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         };
         console.log('[Frontend] No encryption keys available, sending as plaintext:', messageToSend);
       }
+
 
       // Try WebSocket first
       console.log('[Frontend] Emitting chat.send to socket...');

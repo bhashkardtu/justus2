@@ -16,7 +16,7 @@ class GeminiService {
 
     this.initialized = true;
     const apiKey = process.env.GEMINI_API_KEY;
-    
+
     if (!apiKey) {
       console.warn('⚠️  GEMINI_API_KEY not set. AI features will be disabled.');
       this.genAI = null;
@@ -172,7 +172,7 @@ Return ONLY the improved transcript, nothing else. Do not add explanations or qu
    */
   async translateText(text, fromLang, toLang) {
     console.log(`[Gemini] Requesting translation: "${text}" (${fromLang} -> ${toLang})`);
-    
+
     if (!this.enabled) {
       console.log('[Gemini] Service disabled or API key missing');
       return text; // Fallback to original if AI disabled
@@ -297,6 +297,49 @@ Message: "${message}"`;
     } catch (error) {
       console.error('Tone analysis error:', error);
       return { tone: 'neutral', confidence: 0, warning: null };
+    }
+  }
+
+  /**
+   * Transcribe audio file to text
+   * @param {Buffer} fileBuffer - Audio file buffer
+   * @param {string} mimeType - MIME type of the audio file
+   * @returns {Promise<string>} - Transcribed text
+   */
+  async transcribeAudio(fileBuffer, mimeType) {
+    if (!this.enabled) {
+      throw new Error('Gemini API not configured');
+    }
+
+    try {
+      console.log(`[Gemini] Transcribing audio (${mimeType}, ${fileBuffer.length} bytes)...`);
+      const model = this.genAI.getGenerativeModel({ model: DEFAULT_MODEL });
+
+      const prompt = `Transcribe the speech in this audio file exactly as spoken. 
+      Do not add timestamps, speaker labels, or any other text. 
+      If the audio is silent or unintelligible, return an empty string.`;
+
+      // Convert buffer to base64
+      const audioBase64 = fileBuffer.toString('base64');
+
+      const result = await model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            mimeType: mimeType,
+            data: audioBase64
+          }
+        }
+      ]);
+
+      const transcript = result.response.text().trim();
+      console.log(`[Gemini] Transcription complete: "${transcript.substring(0, 50)}..."`);
+      return transcript;
+
+    } catch (error) {
+      console.error('[Gemini] Transcription error:', error);
+      // Don't throw, just return empty so flow continues
+      return '';
     }
   }
 }
