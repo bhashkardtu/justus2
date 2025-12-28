@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { register } from '../services/auth';
+import { register } from '../../services/auth';
 
 export default function SignupPage({ onSignupSuccess, onSwitchToLogin, theme }) {
   const [formData, setFormData] = useState({
@@ -47,7 +47,7 @@ export default function SignupPage({ onSignupSuccess, onSwitchToLogin, theme }) 
         displayName: formData.displayName,
         password: formData.password
       });
-      
+
       onSignupSuccess(res.data.email);
     } catch (error) {
       setErrors({ general: error.message });
@@ -56,11 +56,10 @@ export default function SignupPage({ onSignupSuccess, onSwitchToLogin, theme }) 
     }
   };
 
-  const inputClass = `w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 outline-none ${
-    darkMode 
-      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+  const inputClass = `w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 outline-none ${darkMode
+      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
       : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
-  }`;
+    }`;
 
   const labelClass = `block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`;
 

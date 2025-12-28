@@ -267,3 +267,6 @@ storybook-static/
 .next/
 .nuxt/
 out/
+
+# Text Files
+*.txt

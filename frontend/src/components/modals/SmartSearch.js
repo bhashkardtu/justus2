@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import aiService from '../services/aiService';
-import LoadingSpinner from './LoadingSpinner';
+import aiService from '../../services/aiService';
+import LoadingSpinner from '../common/LoadingSpinner';
 
 export default function SmartSearch({ conversationId, onResultClick, darkMode, onClose }) {
   const [query, setQuery] = useState('');
@@ -46,8 +46,8 @@ export default function SmartSearch({ conversationId, onResultClick, darkMode, o
   };
 
   return (
-    <div 
-      ref={panelRef} 
+    <div
+      ref={panelRef}
       role="dialog"
       aria-label="Smart search messages"
       style={{
@@ -110,24 +110,24 @@ export default function SmartSearch({ conversationId, onResultClick, darkMode, o
             marginBottom: '16px',
             borderLeft: '3px solid #00a884'
           }}>
-            <h4 style={{ 
-              margin: '0 0 8px 0', 
+            <h4 style={{
+              margin: '0 0 8px 0',
               color: darkMode ? '#00a884' : '#008069',
               fontSize: '14px',
               fontWeight: '600'
             }}>
               AI Summary
             </h4>
-            <p style={{ 
-              margin: 0, 
+            <p style={{
+              margin: 0,
               color: darkMode ? '#e9edef' : '#000',
               fontSize: '14px',
               lineHeight: '1.5'
             }}>
               {results.summary}
             </p>
-            <p style={{ 
-              margin: '8px 0 0 0', 
+            <p style={{
+              margin: '8px 0 0 0',
               color: darkMode ? '#8696a0' : '#666',
               fontSize: '12px'
             }}>
@@ -137,7 +137,7 @@ export default function SmartSearch({ conversationId, onResultClick, darkMode, o
 
           {results.results.length > 0 && (
             <div>
-              <h4 style={{ 
+              <h4 style={{
                 margin: '0 0 12px 0',
                 color: darkMode ? '#e9edef' : '#000',
                 fontSize: '14px',
@@ -165,15 +165,15 @@ export default function SmartSearch({ conversationId, onResultClick, darkMode, o
                       e.currentTarget.style.background = darkMode ? '#0b141a' : '#f5f5f5';
                     }}
                   >
-                    <div style={{ 
-                      fontSize: '12px', 
+                    <div style={{
+                      fontSize: '12px',
                       color: darkMode ? '#8696a0' : '#666',
                       marginBottom: '4px'
                     }}>
                       {msg.senderName || msg.senderId} • {new Date(msg.timestamp).toLocaleDateString()}
                     </div>
-                    <div style={{ 
-                      fontSize: '14px', 
+                    <div style={{
+                      fontSize: '14px',
                       color: darkMode ? '#e9edef' : '#000'
                     }}>
                       {msg.content.length > 150 ? msg.content.substring(0, 150) + '...' : msg.content}

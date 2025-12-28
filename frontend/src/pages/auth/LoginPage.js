@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { login } from '../services/auth';
-import { setAuthToken } from '../services/api';
+import { login } from '../../services/auth';
+import { setAuthToken } from '../../services/api';
 
 export default function LoginPage({ onLogin, onSwitchToSignup, onRequiresVerification, theme }) {
   const [username, setUsername] = useState('');
@@ -21,10 +21,10 @@ export default function LoginPage({ onLogin, onSwitchToSignup, onRequiresVerific
   const submit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-    
+
     setLoading(true);
     setErrors({});
-    
+
     try {
       const res = await login({ username: username.trim(), password });
       const data = res.data;
@@ -34,23 +34,22 @@ export default function LoginPage({ onLogin, onSwitchToSignup, onRequiresVerific
       onLogin(data.user);
     } catch (error) {
       console.error('Login failed:', error);
-      
+
       if (error.requiresVerification) {
         onRequiresVerification(error.email);
         return;
       }
-      
+
       setErrors({ general: error.message || 'Login failed' });
     } finally {
       setLoading(false);
     }
   }
 
-  const inputClass = `w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 outline-none ${
-    darkMode 
-      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+  const inputClass = `w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 outline-none ${darkMode
+      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
       : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
-  }`;
+    }`;
 
   const labelClass = `block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`;
 
@@ -59,9 +58,8 @@ export default function LoginPage({ onLogin, onSwitchToSignup, onRequiresVerific
       <div className="w-full max-w-md">
         <div className={`rounded-2xl p-8 shadow-xl ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
           <div className="text-center mb-8">
-            <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
-              darkMode ? 'bg-indigo-900/50' : 'bg-gradient-to-br from-indigo-500 to-purple-600'
-            }`}>
+            <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${darkMode ? 'bg-indigo-900/50' : 'bg-gradient-to-br from-indigo-500 to-purple-600'
+              }`}>
               <span className="text-white font-bold text-2xl">JU</span>
             </div>
             <h2 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>

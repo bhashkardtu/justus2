@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { loadAuthenticatedMedia } from '../utils/mediaLoader';
+import { loadAuthenticatedMedia } from '../../../utils/mediaLoader';
 
 export default function AudioMessage({ message, mine }) {
   const [audioUrl, setAudioUrl] = useState(null);
@@ -33,7 +33,7 @@ export default function AudioMessage({ message, mine }) {
         const urlParts = message.content.split('/');
         const mediaId = urlParts[urlParts.length - 1].split('?')[0];
         console.log('AudioMessage: Loading audio with mediaId:', mediaId);
-        
+
         const authenticatedBlobUrl = await loadAuthenticatedMedia(message.content, mediaId);
         setAudioUrl(authenticatedBlobUrl);
         setLoading(false);
@@ -106,7 +106,7 @@ export default function AudioMessage({ message, mine }) {
     const translated = message.metadata?.translatedTranscript;
     const targetLang = message.metadata?.targetLanguage || 'hi';
     console.log('[AudioMessage] handleSpeakTranslation called:', { hasTranslation: !!translated, language: targetLang, text: translated });
-    
+
     if (!translated) {
       console.warn('[AudioMessage] No translation available');
       return;
@@ -127,7 +127,7 @@ export default function AudioMessage({ message, mine }) {
     try {
       console.log('[AudioMessage] Fetching TTS audio for language:', targetLang);
       setSpeakingTranslated(true);
-      
+
       const token = localStorage.getItem('token');
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/tts/generate`, {
         method: 'POST',
@@ -147,13 +147,13 @@ export default function AudioMessage({ message, mine }) {
 
       const audioBlob = await response.blob();
       const ttsAudioUrl = URL.createObjectURL(audioBlob);
-      
+
       console.log('[AudioMessage] Playing TTS audio');
-      
+
       // Create a new audio element for TTS
       const ttsAudio = new Audio(ttsAudioUrl);
       ttsAudioRef.current = ttsAudio; // Store reference for stopping
-      
+
       ttsAudio.onended = () => {
         console.log('[AudioMessage] TTS playback ended');
         setSpeakingTranslated(false);
@@ -166,9 +166,9 @@ export default function AudioMessage({ message, mine }) {
         URL.revokeObjectURL(ttsAudioUrl);
         alert('Failed to play translation audio');
       };
-      
+
       await ttsAudio.play();
-      
+
     } catch (error) {
       console.error('[AudioMessage] TTS error:', error);
       setSpeakingTranslated(false);
@@ -187,7 +187,7 @@ export default function AudioMessage({ message, mine }) {
         <div className="flex-1 min-w-0">
           <div className={`p-4 rounded-xl ${mine ? 'bg-red-100' : 'bg-red-50'} border border-red-200`}>
             <p className="text-sm text-red-600 mb-3 font-medium">🎵 Voice message failed to load</p>
-            <button 
+            <button
               className="px-4 py-2 bg-indigo-500 text-white text-sm rounded-lg hover:bg-indigo-600 transition-colors shadow-sm"
               onClick={() => {
                 const token = localStorage.getItem('token');
@@ -255,12 +255,11 @@ export default function AudioMessage({ message, mine }) {
           {audioUrl && (
             <audio ref={audioRef} src={audioUrl} preload="metadata" style={{ display: 'none' }} />
           )}
-          
+
           {/* Display translated transcript if available */}
           {message.metadata?.translatedTranscript && (
-            <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${
-              mine ? 'bg-emerald-50 text-emerald-800' : 'bg-emerald-100 text-emerald-800'
-            }`} style={{ borderLeft: '3px solid #10b981' }}>
+            <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${mine ? 'bg-emerald-50 text-emerald-800' : 'bg-emerald-100 text-emerald-800'
+              }`} style={{ borderLeft: '3px solid #10b981' }}>
               <div className="flex items-start justify-between gap-2 mb-1">
                 <div className="font-semibold text-xs uppercase tracking-wide opacity-80">Translation</div>
                 <button
@@ -277,9 +276,8 @@ export default function AudioMessage({ message, mine }) {
 
           {/* Display transcript if available */}
           {message.metadata?.transcript && (
-            <div className={`mt-3 px-3 py-2 rounded-lg text-sm italic ${
-              mine ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-700'
-            }`} style={{ borderLeft: mine ? '3px solid #6366f1' : '3px solid #9ca3af' }}>
+            <div className={`mt-3 px-3 py-2 rounded-lg text-sm italic ${mine ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-700'
+              }`} style={{ borderLeft: mine ? '3px solid #6366f1' : '3px solid #9ca3af' }}>
               💬 "{message.metadata.transcript}"
             </div>
           )}

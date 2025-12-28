@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { uploadAvatar, getAvatarUrl } from '../services/avatarService';
-import { updateProfile } from '../services/auth';
+import { uploadAvatar, getAvatarUrl } from '../../services/avatarService';
+import { updateProfile } from '../../services/auth';
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -105,7 +105,7 @@ export default function ProfileModal({ show, onClose, user, onAvatarUpdate, onPr
     try {
       const result = await uploadAvatar(file);
       console.log('[profile] Avatar uploaded:', result);
-      
+
       // Update parent with new avatar URL
       if (onAvatarUpdate) {
         onAvatarUpdate(result.avatarUrl);
@@ -130,11 +130,11 @@ export default function ProfileModal({ show, onClose, user, onAvatarUpdate, onPr
         displayName,
         preferredLanguage
       });
-      
+
       if (onProfileUpdate) {
         onProfileUpdate(updatedUser.user);
       }
-      
+
       alert('Profile updated successfully!');
       onClose();
     } catch (error) {
@@ -246,13 +246,13 @@ export default function ProfileModal({ show, onClose, user, onAvatarUpdate, onPr
         </div>
 
         <div className="flex gap-3">
-          <button 
+          <button
             onClick={onClose}
             className={`flex-1 ${styles.cancelBtn} py-3 rounded-xl transition-colors duration-200 font-medium`}
           >
             Cancel
           </button>
-          <button 
+          <button
             onClick={handleSaveProfile}
             disabled={saving}
             className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl transition-colors duration-200 font-medium disabled:opacity-50"

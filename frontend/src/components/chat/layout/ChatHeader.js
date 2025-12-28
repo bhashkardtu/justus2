@@ -1,6 +1,6 @@
 import React from 'react';
-import ProfileModal from './ProfileModal';
-import { getAvatarUrl } from '../services/avatarService';
+import ProfileModal from '../../modals/ProfileModal';
+import { getAvatarUrl } from '../../../services/avatarService';
 
 export default function ChatHeader({
   otherUser,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { verifyEmail, resendVerification } from '../services/auth';
-import { setAuthToken } from '../services/api';
+import { verifyEmail, resendVerification } from '../../services/auth';
+import { setAuthToken } from '../../services/api';
 
 export default function VerifyEmailPage({ email, onVerificationSuccess, theme }) {
   const [code, setCode] = useState('');
@@ -45,7 +45,7 @@ export default function VerifyEmailPage({ email, onVerificationSuccess, theme })
 
   const handleResend = async () => {
     if (timer > 0) return;
-    
+
     setResending(true);
     setMessage('');
     setError('');
@@ -65,9 +65,8 @@ export default function VerifyEmailPage({ email, onVerificationSuccess, theme })
       <div className="w-full max-w-md">
         <div className={`rounded-2xl p-8 shadow-xl ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
           <div className="text-center mb-8">
-            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
-              darkMode ? 'bg-indigo-900/50' : 'bg-indigo-100'
-            }`}>
+            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${darkMode ? 'bg-indigo-900/50' : 'bg-indigo-100'
+              }`}>
               <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
@@ -76,7 +75,7 @@ export default function VerifyEmailPage({ email, onVerificationSuccess, theme })
               Verify your email
             </h2>
             <p className={darkMode ? 'text-gray-400' : 'text-gray-500'}>
-              We sent a verification code to<br/>
+              We sent a verification code to<br />
               <span className="font-medium text-indigo-500">{email}</span>
             </p>
           </div>
@@ -102,11 +101,10 @@ export default function VerifyEmailPage({ email, onVerificationSuccess, theme })
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className={`w-full px-4 py-3 text-center text-2xl tracking-widest rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 outline-none ${
-                  darkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
+                className={`w-full px-4 py-3 text-center text-2xl tracking-widest rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 outline-none ${darkMode
+                    ? 'bg-gray-700 border-gray-600 text-white'
                     : 'bg-gray-50 border-gray-200 text-gray-900'
-                }`}
+                  }`}
                 placeholder="000000"
               />
             </div>

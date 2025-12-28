@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { loadAuthenticatedMedia } from '../utils/mediaLoader';
+import { loadAuthenticatedMedia } from '../../../utils/mediaLoader';
 
 export default function ImageMessage({ message, mine }) {
   const [imageUrl, setImageUrl] = useState(null);
@@ -42,7 +42,7 @@ export default function ImageMessage({ message, mine }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
               <p className="text-xs mb-2 font-medium">Image failed to load</p>
-              <button 
+              <button
                 className="px-3 py-1 bg-indigo-500 text-white text-xs rounded-lg hover:bg-indigo-600 transition-colors"
                 onClick={() => { setError(false); setLoading(true); }}
               >
@@ -66,7 +66,7 @@ export default function ImageMessage({ message, mine }) {
         </div>
       ) : (
         <div className="relative rounded-lg overflow-hidden">
-          <img 
+          <img
             src={imageUrl}
             alt="Shared image"
             className="max-w-xs rounded-lg cursor-pointer transition-all duration-300 hover:scale-105 shadow-md"

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { loadAuthenticatedMedia } from '../utils/mediaLoader';
+import { loadAuthenticatedMedia } from '../../../utils/mediaLoader';
 import BotMessage from './BotMessage';
 
 export default function MessageItem({ me, m, onEdit, onDelete }) {
@@ -116,8 +116,8 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
 
           {/* Message Bubble Tail */}
           <div className={`absolute w-4 h-4 transform rotate-45 ${mine
-              ? 'bg-gradient-to-r from-white to-white -right-2 bottom-4'
-              : 'bg-white/80 -left-2 bottom-4 border-l border-b border-gray-200/50'
+            ? 'bg-gradient-to-r from-white to-white -right-2 bottom-4'
+            : 'bg-white/80 -left-2 bottom-4 border-l border-b border-gray-200/50'
             }`}></div>
 
           {/* Message Header */}

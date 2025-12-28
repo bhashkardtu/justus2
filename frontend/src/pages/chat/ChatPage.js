@@ -1,25 +1,25 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { sendSocketMessage, getConnectionStatus, getSocket, exchangePublicKey, getPublicKey } from '../services/socket';
-import { setAuthToken, getAuthenticatedApi } from '../services/api';
-import ChatHeader from '../components/ChatHeader';
-import ChatMessages from '../components/ChatMessages';
-import TypingIndicator from '../components/TypingIndicator';
-import ScrollToBottomButton from '../components/ScrollToBottomButton';
-import ComposeBar from '../components/ComposeBar';
-import UserSelectModal from '../components/UserSelectModal';
-import VoiceCallModal from '../components/VoiceCallModal';
-import VideoCallModal from '../components/VideoCallModal';
-import SmartSearch from '../components/SmartSearch';
-import WallpaperPanel from '../components/WallpaperPanel';
-import useChatSocket from '../hooks/useChatSocket';
-import useReadReceipts from '../hooks/useReadReceipts';
-import useImageUpload from '../hooks/useImageUpload';
-import useVoiceMessage from '../hooks/useVoiceMessage';
-import useVoiceCall from '../hooks/useVoiceCall';
-import useVideoCall from '../hooks/useVideoCall';
-import useEncryption from '../hooks/useEncryption';
-import { forwardMessage } from '../services/chat';
-import { buildWallpaperUrl, DEFAULT_WALLPAPER, fetchWallpaper, saveWallpaper } from '../services/wallpaperService';
+import { sendSocketMessage, getConnectionStatus, getSocket, exchangePublicKey, getPublicKey } from '../../services/socket';
+import { setAuthToken, getAuthenticatedApi } from '../../services/api';
+import ChatHeader from '../../components/chat/layout/ChatHeader';
+import ChatMessages from '../../components/chat/layout/ChatMessages';
+import TypingIndicator from '../../components/chat/layout/TypingIndicator';
+import ScrollToBottomButton from '../../components/chat/layout/ScrollToBottomButton';
+import ComposeBar from '../../components/chat/input/ComposeBar';
+import UserSelectModal from '../../components/modals/UserSelectModal';
+import VoiceCallModal from '../../components/modals/VoiceCallModal';
+import VideoCallModal from '../../components/modals/VideoCallModal';
+import SmartSearch from '../../components/modals/SmartSearch';
+import WallpaperPanel from '../../components/chat/layout/WallpaperPanel';
+import useChatSocket from '../../hooks/useChatSocket';
+import useReadReceipts from '../../hooks/useReadReceipts';
+import useImageUpload from '../../hooks/useImageUpload';
+import useVoiceMessage from '../../hooks/useVoiceMessage';
+import useVoiceCall from '../../hooks/useVoiceCall';
+import useVideoCall from '../../hooks/useVideoCall';
+import useEncryption from '../../hooks/useEncryption';
+import { forwardMessage } from '../../services/chat';
+import { buildWallpaperUrl, DEFAULT_WALLPAPER, fetchWallpaper, saveWallpaper } from '../../services/wallpaperService';
 
 const WALLPAPER_PRESETS = [
   {
@@ -54,7 +54,7 @@ const WALLPAPER_PRESETS = [
   }
 ];
 
-export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwitcher, setShowContactSwitcher }){
+export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwitcher, setShowContactSwitcher }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [conversationId, setConversationId] = useState(null);
@@ -87,10 +87,10 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
     const handleThemeChange = () => {
       setTheme(localStorage.getItem('theme') || 'light');
     };
-    
+
     // Check for theme changes periodically
     const interval = setInterval(handleThemeChange, 100);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -261,7 +261,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
   useEffect(() => {
     const currentLength = messages.length;
     const wasAtBottom = !userScrolledUp;
-    
+
     // Scroll to bottom only if:
     // 1. New message was added (not just array change)
     // 2. User was already near bottom
@@ -269,11 +269,11 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
     if (currentLength > prevMessagesLength && (wasAtBottom || prevMessagesLength === 0)) {
       scrollToBottom();
     }
-    
+
     setPrevMessagesLength(currentLength);
   }, [messages, userScrolledUp, prevMessagesLength]);
 
-  useEffect(()=>{
+  useEffect(() => {
     // apply saved theme on mount
     if (theme === 'dark') {
       document.documentElement.classList.add('dark-theme');
@@ -297,7 +297,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
 
         // Set auth token for API requests
         setAuthToken(token);
-        
+
         // Fetch available users
         const authenticatedApi = getAuthenticatedApi();
         const usersRes = await authenticatedApi.get('/api/auth/users');
@@ -322,27 +322,27 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
           const found = users.find(u => u.id === otherId);
           setOtherUser(found || null);
         }
-        
+
         // Always use the same conversation for the same user pair
         if (otherId) {
           try {
             console.log('Creating/getting conversation with other user:', otherId);
             console.log('Current user ID:', user.id);
-            
+
             // Validate that otherId exists
             if (!otherId || otherId === 'undefined' || otherId === 'null') {
               console.error('Invalid otherId:', otherId);
               throw new Error('Invalid other user ID');
             }
-            
+
             // Use the getAuthenticatedApi to ensure the token is included in this specific request
             const authenticatedApi = getAuthenticatedApi();
-            console.log('Authorization header for conversation request:', 
+            console.log('Authorization header for conversation request:',
               authenticatedApi.defaults.headers.common['Authorization'] || 'none');
             console.log('Using other user ID:', otherId);
             const conv = await authenticatedApi.post('/api/chat/conversation?other=' + otherId);
             console.log('Conversation response:', conv.data);
-            
+
             // Use _id from MongoDB response
             const conversationId = conv.data._id || conv.data.id;
             setConversationId(conversationId);
@@ -358,7 +358,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
             if (error.response) {
               console.error('Response status:', error.response.status);
               console.error('Response data:', error.response.data);
-              
+
               // Check if it's a 401 error and redirect to sign in
               if (error.response.status === 401) {
                 console.log('401 Unauthorized - Redirecting to sign in');
@@ -368,7 +368,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
                 window.location.href = '/signin';
                 return;
               }
-              
+
               // Show user-friendly error message
               const errorMessage = error.response.data?.message || error.message;
               alert(`Failed to load conversation: ${errorMessage}`);
@@ -385,7 +385,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         if (e.response) {
           console.error('Response status:', e.response.status);
           console.error('Response data:', e.response.data);
-          
+
           // Check if it's a 401 error and redirect to sign in
           if (e.response.status === 401) {
             console.log('401 Unauthorized - Redirecting to sign in');
@@ -403,7 +403,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
 
     initializeChat();
     let cleanupIntervalId;
-    
+
     // Exchange public key with server for E2EE after connection
     const keyExchangeTimeout = setTimeout(() => {
       if (encryption.getKeyPair()) {
@@ -411,7 +411,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         console.log('Public key exchanged with server');
       }
     }, 500);
-    
+
     // Setup periodic cleanup of old temporary messages
     cleanupIntervalId = setInterval(() => {
       setMessages(prev => prev.map(msg => {
@@ -448,7 +448,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
       const rawWallpaper = wallpaperPreview.sourceType === 'preset'
         ? activePreset?.value || ''
         : wallpaperPreview.imageUrl;
-      
+
       if (wallpaperPreview.sourceType === 'none' || !rawWallpaper) {
         setResolvedWallpaperUrl('');
         return;
@@ -476,7 +476,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         setShowContactSwitcher(false);
       }
     };
-    
+
     if (showContactSwitcher) {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
@@ -487,62 +487,62 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
   useEffect(() => {
     return () => {
       console.log('ChatPage cleanup: Cleaning up resources');
-      
+
       // Clear all timeouts
       cleanupTimeoutsRef.current.forEach(timeoutId => {
         clearTimeout(timeoutId);
       });
       cleanupTimeoutsRef.current.clear();
-      
+
       // Clear typing timeout
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
-      
+
       // Reset refs
       sendingRef.current = false;
       connectedRef.current = false;
-      
+
       // WebSocket cleanup handled by useChatSocket hook
     };
   }, []);
 
   const send = async (e) => {
     e?.preventDefault();
-    
+
     // Prevent race conditions with ref check
     if (!text.trim() || sendingRef.current || sending) return;
-    
+
     sendingRef.current = true;
     setSending(true);
-    
+
     const currentUserId = user.id;
     const targetUserId = otherUserId || localStorage.getItem('otherUserId');
-    
+
     if (!targetUserId) {
       alert('No chat partner available. Please register another user first.');
       sendingRef.current = false;
       setSending(false);
       return;
     }
-    
+
     if (editingMessage) {
       // For editing messages, try WebSocket first, then HTTP fallback
-      const success = sendSocketMessage({ 
-        id: editingMessage.id, 
-        type: 'text', 
-        content: text.trim(), 
-        receiverId: targetUserId, 
+      const success = sendSocketMessage({
+        id: editingMessage.id,
+        type: 'text',
+        content: text.trim(),
+        receiverId: targetUserId,
         conversationId,
         senderId: currentUserId
       });
-      
+
       if (!success) {
         // HTTP fallback for editing (if available in your backend)
         console.log('WebSocket edit failed, trying HTTP fallback');
         alert('Failed to edit message. WebSocket may be disconnected.');
       }
-      
+
       setEditingMessage(null);
     } else {
       // Create a temporary message object for optimistic UI update
@@ -563,20 +563,20 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
           metadata: replyingTo.metadata
         } : null
       };
-      
+
       // Add message immediately to UI (optimistic update)
       setMessages(prev => [...prev, tempMessage]);
-      
+
       // Always scroll to bottom when user sends a message
       setTimeout(() => {
         scrollToBottom();
         setUserScrolledUp(false);
       }, 100);
-      
+
       // Get receiver's public key for encryption
       const receiverPublicKey = encryption.getPublicKeyForUser(targetUserId);
       let messageToSend;
-      
+
       if (receiverPublicKey && encryption.getKeyPair()) {
         // Encrypt the message
         const encrypted = encryption.encryptMessage(text.trim(), receiverPublicKey);
@@ -620,29 +620,29 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         };
         console.log('[Frontend] No encryption keys available, sending as plaintext:', messageToSend);
       }
-      
+
       // Try WebSocket first
       console.log('[Frontend] Emitting chat.send to socket...');
       const wsSuccess = sendSocketMessage(messageToSend);
       console.log('[Frontend] Socket emit success:', wsSuccess);
-      
+
       // Set up automatic cleanup of temporary message after 10 seconds
       const cleanupTimeout = setTimeout(() => {
-        setMessages(prev => prev.map(msg => 
-          msg.id === tempMessage.id && msg.temporary 
+        setMessages(prev => prev.map(msg =>
+          msg.id === tempMessage.id && msg.temporary
             ? { ...msg, temporary: false } // Remove temporary flag to hide "sending..."
             : msg
         ));
         cleanupTimeoutsRef.current.delete(cleanupTimeout);
       }, 10000);
-      
+
       // Track timeout for cleanup
       cleanupTimeoutsRef.current.add(cleanupTimeout);
-      
+
       if (!wsSuccess) {
         clearTimeout(cleanupTimeout);
         cleanupTimeoutsRef.current.delete(cleanupTimeout);
-        
+
         // If WebSocket fails, try HTTP API fallback
         try {
           console.log('WebSocket send failed, trying HTTP API fallback');
@@ -653,13 +653,13 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
             receiverId: targetUserId,
             conversationId
           };
-          
+
           const response = await authenticatedApi.post('/api/chat/messages', message);
           console.log('Message sent successfully via HTTP API');
-          
+
           // Replace temporary message with real message from server
           if (response.data) {
-            setMessages(prev => prev.map(msg => 
+            setMessages(prev => prev.map(msg =>
               msg.id === tempMessage.id ? { ...response.data, temporary: false } : msg
             ));
           }
@@ -674,7 +674,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         // WebSocket success - the cleanup timeout will handle removing the temporary flag
       }
     }
-    
+
     setText('');
     setReplyingTo(null); // Clear reply after sending
     sendingRef.current = false;
@@ -690,9 +690,9 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
     setMessages
   });
 
-  const onEdit = (m) => { 
-    setEditingMessage(m); 
-    setText(m.content); 
+  const onEdit = (m) => {
+    setEditingMessage(m);
+    setText(m.content);
   }
 
   const handleReply = (message) => {
@@ -752,25 +752,25 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
       setSavingWallpaper(false);
     }
   };
-  
-  const onDelete = async (m) => { 
+
+  const onDelete = async (m) => {
     if (!window.confirm('Are you sure you want to delete this message?')) {
       return;
     }
-    
+
     console.log('Deleting message:', m.id);
-    
+
     // Try WebSocket first
-    const success = sendSocketMessage({ 
-      id: m.id, 
-      type: 'delete', 
+    const success = sendSocketMessage({
+      id: m.id,
+      type: 'delete',
       conversationId,
       senderId: user.id
     });
-    
+
     if (success) {
       console.log('Delete message sent via WebSocket - waiting for confirmation');
-      
+
       // Set a timeout fallback in case WebSocket confirmation never comes
       setTimeout(() => {
         setMessages(prev => {
@@ -782,23 +782,23 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
           return prev;
         });
       }, 5000); // 5 second timeout
-      
+
       return;
     }
-    
+
     console.log('WebSocket delete failed, trying HTTP API fallback');
-    
+
     try {
       // HTTP API fallback - with optimistic deletion
       const messageToDelete = m.id;
       setMessages(prev => prev.filter(msg => msg.id !== messageToDelete));
-      
+
       const authenticatedApi = getAuthenticatedApi();
       await authenticatedApi.delete(`/api/chat/messages/${m.id}`);
       console.log('Message deleted successfully via HTTP API');
     } catch (error) {
       console.error('HTTP API delete also failed:', error);
-      
+
       // Restore the message if HTTP API fails
       setMessages(prev => {
         // Check if message is already back (to avoid duplicates)
@@ -809,7 +809,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         const newMessages = [...prev, m];
         return newMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       });
-      
+
       alert('Failed to delete message. Please check your connection and try again.');
     }
   }
@@ -904,86 +904,86 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
           wallpaperActive={wallpaperActive}
         />
 
-          {/* Modern Messages Area */}
-          <div 
-            ref={chatContainerRef}
-            onScroll={handleScroll}
-            style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: colors.bg, position: 'relative' }}
-          >
-            {wallpaperActive && resolvedWallpaperUrl && (
-              <div
-                aria-hidden
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  backgroundImage: wallpaperIsGradient ? resolvedWallpaperUrl : `url(${resolvedWallpaperUrl})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  filter: `blur(${wallpaperPreview.blur || 0}px)`,
-                  opacity: wallpaperPreview.opacity ?? 0.9,
-                  transition: 'opacity 0.2s ease, filter 0.2s ease',
-                  zIndex: 0
-                }}
-              />
-            )}
-            {/* Messages container with padding for mobile/desktop */}
-            <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', zIndex: 1 }}>
-              <ChatMessages 
-                messages={messages} 
-                user={user} 
-                otherUser={otherUser} 
-                onEdit={onEdit} 
-                onDelete={onDelete} 
-                onReply={handleReply} 
-                onForward={(m)=>{ setForwardingMessage(m); setShowForwardModal(true); }} 
-                colors={colors}
-              />
-              <TypingIndicator typingUser={typingUser} colors={colors} />
-            </div>
-            
-            {/* Scroll to bottom button - appears when user scrolled up */}
-            {userScrolledUp && (
-              <ScrollToBottomButton onClick={() => { scrollToBottom(); setUserScrolledUp(false); }} />
-            )}
-            
-            {/* Scroll to bottom ref */}
-            <div ref={messagesEndRef} />
+        {/* Modern Messages Area */}
+        <div
+          ref={chatContainerRef}
+          onScroll={handleScroll}
+          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: colors.bg, position: 'relative' }}
+        >
+          {wallpaperActive && resolvedWallpaperUrl && (
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundImage: wallpaperIsGradient ? resolvedWallpaperUrl : `url(${resolvedWallpaperUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: `blur(${wallpaperPreview.blur || 0}px)`,
+                opacity: wallpaperPreview.opacity ?? 0.9,
+                transition: 'opacity 0.2s ease, filter 0.2s ease',
+                zIndex: 0
+              }}
+            />
+          )}
+          {/* Messages container with padding for mobile/desktop */}
+          <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', zIndex: 1 }}>
+            <ChatMessages
+              messages={messages}
+              user={user}
+              otherUser={otherUser}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onReply={handleReply}
+              onForward={(m) => { setForwardingMessage(m); setShowForwardModal(true); }}
+              colors={colors}
+            />
+            <TypingIndicator typingUser={typingUser} colors={colors} />
           </div>
 
-          {/* Modern Input Area */}
-          <ComposeBar
-            text={text}
-            setText={setText}
-            onTyping={onTyping}
-            otherUser={otherUser}
-            uploading={uploading}
-            uploadImage={uploadImage}
-            recording={recording}
-            startRecording={startRecording}
-            stopRecording={stopRecording}
-            sending={sending}
-            editingMessage={editingMessage}
-            cancelEdit={cancelEdit}
-            replyingTo={replyingTo}
-            cancelReply={cancelReply}
-            send={send}
-            connectionStatus={connectionStatus}
-            colors={colors}
-            currentUserId={user.id}
-          />
+          {/* Scroll to bottom button - appears when user scrolled up */}
+          {userScrolledUp && (
+            <ScrollToBottomButton onClick={() => { scrollToBottom(); setUserScrolledUp(false); }} />
+          )}
+
+          {/* Scroll to bottom ref */}
+          <div ref={messagesEndRef} />
         </div>
 
-        <WallpaperPanel
-          open={wallpaperPanelOpen}
-          onClose={closeWallpaperPanel}
-          presets={WALLPAPER_PRESETS}
-          value={wallpaperPreview}
-          onChange={(next) => setWallpaperPreview(next)}
-          onSave={applyAndSaveWallpaper}
-          onReset={() => applyAndSaveWallpaper(DEFAULT_WALLPAPER)}
-          onUpload={handleWallpaperUpload}
-          saving={savingWallpaper}
+        {/* Modern Input Area */}
+        <ComposeBar
+          text={text}
+          setText={setText}
+          onTyping={onTyping}
+          otherUser={otherUser}
+          uploading={uploading}
+          uploadImage={uploadImage}
+          recording={recording}
+          startRecording={startRecording}
+          stopRecording={stopRecording}
+          sending={sending}
+          editingMessage={editingMessage}
+          cancelEdit={cancelEdit}
+          replyingTo={replyingTo}
+          cancelReply={cancelReply}
+          send={send}
+          connectionStatus={connectionStatus}
+          colors={colors}
+          currentUserId={user.id}
         />
+      </div>
+
+      <WallpaperPanel
+        open={wallpaperPanelOpen}
+        onClose={closeWallpaperPanel}
+        presets={WALLPAPER_PRESETS}
+        value={wallpaperPreview}
+        onChange={(next) => setWallpaperPreview(next)}
+        onSave={applyAndSaveWallpaper}
+        onReset={() => applyAndSaveWallpaper(DEFAULT_WALLPAPER)}
+        onUpload={handleWallpaperUpload}
+        saving={savingWallpaper}
+      />
 
       {/* Modern User Selection Modal */}
       {/* Smart Search Modal */}

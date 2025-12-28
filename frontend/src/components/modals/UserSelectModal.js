@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import api from '../services/api';
-import { getAvatarUrl } from '../services/avatarService';
+import api from '../../services/api';
+import { getAvatarUrl } from '../../services/avatarService';
 
 export default function UserSelectModal({ show, onClose, availableUsers, currentUserId, onSelect, darkMode, currentChatUserId }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,7 +72,7 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
       alert('An invite is already being processed. Please wait...');
       return;
     }
-    
+
     setLoading(true);
     localStorage.setItem('invite_connecting', '1');
     try {
@@ -97,23 +97,23 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
 
   // Filter contacts based on search query
   const contacts = availableUsers.filter(u => u.id !== currentUserId);
-  const filteredContacts = contacts.filter(u => 
-    searchQuery === '' || 
-    u.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredContacts = contacts.filter(u =>
+    searchQuery === '' ||
+    u.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.username?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="contacts-modal-title">
       <div ref={modalRef} className={`${darkMode ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'} rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col`} style={{ animation: 'slideDown 0.2s ease-out' }}>
-        
+
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}">
           <div className="flex items-center justify-between mb-4">
             <h3 id="contacts-modal-title" className={`text-xl font-bold ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
               Contacts
             </h3>
-            <button 
+            <button
               onClick={onClose}
               className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
               aria-label="Close"
@@ -135,11 +135,10 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
               placeholder="Search or add contact..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-10 pr-4 py-3 rounded-xl border ${
-                darkMode 
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-500' 
+              className={`w-full pl-10 pr-4 py-3 rounded-xl border ${darkMode
+                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-500'
                   : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500'
-              } focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all`}
+                } focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all`}
             />
             {searchQuery && (
               <button
@@ -165,7 +164,7 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
               <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Try adding them using invite code below</p>
             </div>
           )}
-          
+
           {filteredContacts.length === 0 && !searchQuery && contacts.length === 0 && (
             <div className="text-center py-8">
               <svg className={`w-16 h-16 mx-auto mb-3 ${darkMode ? 'text-gray-600' : 'text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -183,18 +182,17 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
               </div>
               <div className="space-y-1">
                 {filteredContacts.map(u => (
-                  <button 
-                    key={u.id} 
-                    onClick={() => onSelect(u.id)} 
-                    className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${
-                      currentChatUserId === u.id
-                        ? darkMode 
-                          ? 'bg-indigo-900/40 border border-indigo-700' 
+                  <button
+                    key={u.id}
+                    onClick={() => onSelect(u.id)}
+                    className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${currentChatUserId === u.id
+                        ? darkMode
+                          ? 'bg-indigo-900/40 border border-indigo-700'
                           : 'bg-indigo-50 border border-indigo-200'
                         : darkMode
                           ? 'hover:bg-gray-700/50 border border-transparent'
                           : 'hover:bg-gray-50 border border-transparent'
-                    }`}
+                      }`}
                   >
                     <img
                       src={getAvatarUrl(u.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.displayName || u.username)}&size=40&background=6366f1&color=ffffff&bold=true`}
@@ -235,29 +233,27 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
             </svg>
             <span className={`font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>Add new contact</span>
           </div>
-          
+
           <form onSubmit={handleConnect} className="space-y-3">
             <div className="flex gap-2">
-              <input 
-                type="text" 
-                placeholder="Enter invite code" 
-                className={`flex-1 px-3 py-2.5 rounded-lg border ${
-                  darkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-500' 
+              <input
+                type="text"
+                placeholder="Enter invite code"
+                className={`flex-1 px-3 py-2.5 rounded-lg border ${darkMode
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-500'
                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-indigo-500'
-                } focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all`}
+                  } focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all`}
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
                 maxLength={8}
               />
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={loading || !inviteCode.trim()}
-                className={`px-5 py-2.5 rounded-lg font-medium transition-all ${
-                  darkMode
+                className={`px-5 py-2.5 rounded-lg font-medium transition-all ${darkMode
                     ? 'bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-gray-700 disabled:text-gray-500'
                     : 'bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-gray-200 disabled:text-gray-400'
-                } disabled:cursor-not-allowed`}
+                  } disabled:cursor-not-allowed`}
               >
                 {loading ? '...' : 'Invite'}
               </button>
@@ -275,15 +271,14 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
                 <button
                   type="button"
                   onClick={handleCopyInviteCode}
-                  className={`px-3 py-1 text-xs font-medium rounded transition-all ${
-                    copiedCode
-                      ? darkMode 
-                        ? 'bg-green-900/40 text-green-400' 
+                  className={`px-3 py-1 text-xs font-medium rounded transition-all ${copiedCode
+                      ? darkMode
+                        ? 'bg-green-900/40 text-green-400'
                         : 'bg-green-100 text-green-700'
                       : darkMode
                         ? 'bg-gray-600 hover:bg-gray-500 text-gray-200'
                         : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                  }`}
+                    }`}
                 >
                   {copiedCode ? '✓ Copied' : 'Copy'}
                 </button>

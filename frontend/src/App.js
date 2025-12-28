@@ -1,16 +1,16 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import ErrorBoundary from './components/ErrorBoundary';
-import LoadingSpinner from './components/LoadingSpinner';
-import ProfileModal from './components/ProfileModal';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import LoadingSpinner from './components/common/LoadingSpinner';
+import ProfileModal from './components/modals/ProfileModal';
 import api, { setAuthToken } from './services/api';
 
 // Lazy load pages for better performance
-const ChatPage = lazy(() => import('./pages/ChatPage'));
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const SignupPage = lazy(() => import('./pages/SignupPage'));
-const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
+const ChatPage = lazy(() => import('./pages/chat/ChatPage'));
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
+const SignupPage = lazy(() => import('./pages/auth/SignupPage'));
+const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmailPage'));
 
-export default function App(){
+export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
@@ -49,7 +49,7 @@ export default function App(){
           console.error('Failed to connect:', error);
           const msg = error.response?.data?.message || 'Failed to connect using invite link.';
           if (msg !== 'Already connected') {
-             alert(msg);
+            alert(msg);
           }
           localStorage.removeItem('pendingInviteCode');
         } finally {
@@ -69,7 +69,7 @@ export default function App(){
       setTheme(localStorage.getItem('theme') || 'light');
     };
     window.addEventListener('storage', handleStorageChange);
-    
+
     // Also check for theme changes every 100ms (for same-tab updates)
     const interval = setInterval(() => {
       const currentTheme = localStorage.getItem('theme') || 'light';
@@ -77,7 +77,7 @@ export default function App(){
         setTheme(currentTheme);
       }
     }, 100);
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(interval);
@@ -88,7 +88,7 @@ export default function App(){
     // Check if user is already logged in
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('userData');
-    
+
     if (token && userData) {
       try {
         setAuthToken(token);
@@ -131,11 +131,10 @@ export default function App(){
   if (loading) {
     const darkMode = theme === 'dark';
     return (
-      <div className={`min-h-screen flex items-center justify-center ${
-        darkMode 
-          ? 'bg-gray-900' 
-          : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
-      }`}>
+      <div className={`min-h-screen flex items-center justify-center ${darkMode
+        ? 'bg-gray-900'
+        : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
+        }`}>
         <LoadingSpinner size="lg" text="Loading JustUs..." />
       </div>
     );
@@ -145,9 +144,9 @@ export default function App(){
 
   const renderContent = () => {
     if (user) {
-      return <ChatPage 
-        user={user} 
-        onLogout={handleLogout} 
+      return <ChatPage
+        user={user}
+        onLogout={handleLogout}
         onUserUpdate={handleUserUpdate}
         showContactSwitcher={showContactSwitcher}
         setShowContactSwitcher={setShowContactSwitcher}
@@ -156,7 +155,7 @@ export default function App(){
 
     if (view === 'signup') {
       return (
-        <SignupPage 
+        <SignupPage
           onSignupSuccess={(email) => {
             setVerificationEmail(email);
             setView('verify');
@@ -166,10 +165,10 @@ export default function App(){
         />
       );
     }
-    
+
     if (view === 'verify') {
       return (
-        <VerifyEmailPage 
+        <VerifyEmailPage
           email={verificationEmail}
           onVerificationSuccess={handleLogin}
           theme={theme}
@@ -178,55 +177,52 @@ export default function App(){
     }
 
     return (
-      <LoginPage 
-        onLogin={handleLogin} 
+      <LoginPage
+        onLogin={handleLogin}
         onSwitchToSignup={() => setView('signup')}
         onRequiresVerification={(email) => {
           setVerificationEmail(email);
           setView('verify');
         }}
-        theme={theme} 
+        theme={theme}
       />
     );
   };
 
   return (
     <ErrorBoundary>
-      <div className={`min-h-screen ${
-        darkMode 
-          ? 'bg-gray-900' 
-          : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
-      }`}>
-      <header className={`shadow-lg border-b ${
-        darkMode 
-          ? 'bg-gray-800 border-gray-700' 
+      <div className={`min-h-screen ${darkMode
+        ? 'bg-gray-900'
+        : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
+        }`}>
+        <header className={`shadow-lg border-b ${darkMode
+          ? 'bg-gray-800 border-gray-700'
           : 'bg-white border-gray-200'
-      }`}>
-        <div className="max-w-6xl mx-auto py-4 px-6 flex justify-between items-center">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">JU</span>
+          }`}>
+          <div className="max-w-6xl mx-auto py-4 px-6 flex justify-between items-center">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">JU</span>
+              </div>
+              <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>JustUs</h1>
             </div>
-            <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>JustUs</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            {/* Quick Contact Switcher - Only visible when logged in */}
-            {user && (
-              <button
-                onClick={() => setShowContactSwitcher(!showContactSwitcher)}
-                className={`p-2 rounded-lg transition-all duration-200 ${
-                  darkMode 
-                    ? 'bg-gray-700 hover:bg-gray-600 text-indigo-400' 
+            <div className="flex items-center space-x-4">
+              {/* Quick Contact Switcher - Only visible when logged in */}
+              {user && (
+                <button
+                  onClick={() => setShowContactSwitcher(!showContactSwitcher)}
+                  className={`p-2 rounded-lg transition-all duration-200 ${darkMode
+                    ? 'bg-gray-700 hover:bg-gray-600 text-indigo-400'
                     : 'bg-gray-100 hover:bg-gray-200 text-indigo-600'
-                }`}
-                title="Quick switch contacts"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                </svg>
-              </button>
-            )}
-            {/* Add Contact button - opens ChatPage's Add Contact modal via event
+                    }`}
+                  title="Quick switch contacts"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                  </svg>
+                </button>
+              )}
+              {/* Add Contact button - opens ChatPage's Add Contact modal via event
             {user && (
               <button
                 onClick={() => window.dispatchEvent(new Event('open-add-contact'))}
@@ -242,80 +238,78 @@ export default function App(){
                 </svg>
               </button>
             )} */}
-            
-            {/* Theme Toggle Button - Always Visible */}
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                darkMode 
-                  ? 'bg-gray-700 hover:bg-gray-600 text-yellow-400' 
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
-              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {darkMode ? (
-                // Sun icon for light mode
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                </svg>
-              ) : (
-                // Moon icon for dark mode
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                </svg>
-              )}
-            </button>
-            {/* Profile button - opens profile modal */}
-            {user && (
+
+              {/* Theme Toggle Button - Always Visible */}
               <button
-                onClick={() => setShowProfileModal(true)}
-                className={`p-2 rounded-lg transition-all duration-200 ${
-                  darkMode 
-                    ? 'bg-gray-700 hover:bg-gray-600 text-indigo-400' 
-                    : 'bg-gray-100 hover:bg-gray-200 text-indigo-600'
-                }`}
-                title="View Profile"
+                onClick={toggleTheme}
+                className={`p-2 rounded-lg transition-all duration-200 ${darkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-yellow-400'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 11.25a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 21v-1.125A6.375 6.375 0 0013.125 13.5h-2.25A6.375 6.375 0 004.5 19.875V21" />
-                </svg>
+                {darkMode ? (
+                  // Sun icon for light mode
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                  </svg>
+                ) : (
+                  // Moon icon for dark mode
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                  </svg>
+                )}
               </button>
-            )}
-            {user && (
-              <>
-                <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  Welcome, <span className="font-semibold text-indigo-600">{user.displayName || user.username}</span>
-                </div>
-              </>
-            )}
+              {/* Profile button - opens profile modal */}
+              {user && (
+                <button
+                  onClick={() => setShowProfileModal(true)}
+                  className={`p-2 rounded-lg transition-all duration-200 ${darkMode
+                    ? 'bg-gray-700 hover:bg-gray-600 text-indigo-400'
+                    : 'bg-gray-100 hover:bg-gray-200 text-indigo-600'
+                    }`}
+                  title="View Profile"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11.25a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 21v-1.125A6.375 6.375 0 0013.125 13.5h-2.25A6.375 6.375 0 004.5 19.875V21" />
+                  </svg>
+                </button>
+              )}
+              {user && (
+                <>
+                  <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Welcome, <span className="font-semibold text-indigo-600">{user.displayName || user.username}</span>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
-      {/* Profile modal for viewing/updating current user profile */}
-      <ProfileModal
-        show={showProfileModal}
-        onClose={() => setShowProfileModal(false)}
-        user={user}
-        onAvatarUpdate={(newUrl) => {
-          handleUserUpdate({ avatarUrl: newUrl });
-          setShowProfileModal(false);
-        }}
-        onProfileUpdate={(updates) => {
-          handleUserUpdate(updates);
-        }}
-        theme={theme}
-      />
-      <main className="max-w-6xl mx-auto py-8 px-4">
-        <Suspense fallback={
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <LoadingSpinner size="lg" text="Loading..." />
-          </div>
-        }>
-          {renderContent()}
-        </Suspense>
-      </main>
-    </div>
+        </header>
+        {/* Profile modal for viewing/updating current user profile */}
+        <ProfileModal
+          show={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          user={user}
+          onAvatarUpdate={(newUrl) => {
+            handleUserUpdate({ avatarUrl: newUrl });
+            setShowProfileModal(false);
+          }}
+          onProfileUpdate={(updates) => {
+            handleUserUpdate(updates);
+          }}
+          theme={theme}
+        />
+        <main className="max-w-6xl mx-auto py-8 px-4">
+          <Suspense fallback={
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <LoadingSpinner size="lg" text="Loading..." />
+            </div>
+          }>
+            {renderContent()}
+          </Suspense>
+        </main>
+      </div>
     </ErrorBoundary>
   )
 }

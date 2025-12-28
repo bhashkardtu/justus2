@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { buildWallpaperUrl, DEFAULT_WALLPAPER } from '../services/wallpaperService';
+import { buildWallpaperUrl, DEFAULT_WALLPAPER } from '../../../services/wallpaperService';
 
 export default function WallpaperPanel({
   open,
