@@ -94,6 +94,22 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
     return () => clearInterval(interval);
   }, []);
 
+  // Listen for top-header 'Add contact' event and open the Add Contact modal
+  useEffect(() => {
+    const openAddContact = () => setShowOtherUserModal(true);
+    window.addEventListener('open-add-contact', openAddContact);
+    return () => window.removeEventListener('open-add-contact', openAddContact);
+  }, []);
+
+  // When top-header quick switch is toggled, open the unified contacts modal
+  useEffect(() => {
+    if (showContactSwitcher) {
+      setShowOtherUserModal(true);
+      // close the header switcher state back in App
+      try { setShowContactSwitcher(false); } catch (e) { /* ignore if unavailable */ }
+    }
+  }, [showContactSwitcher, setShowContactSwitcher]);
+
   // Image upload via hook
   const { uploading, uploadImage } = useImageUpload({
     userId: user.id,
@@ -105,162 +121,18 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
     setWallpaperPreview(wallpaperSettings);
     setWallpaperPanelOpen(true);
   };
-  const closeWallpaperPanel = () => {
-    setWallpaperPreview(wallpaperSettings);
-    setWallpaperPanelOpen(false);
-  };
-  const [lastTypingTime, setLastTypingTime] = useState(0);
-  const [sending, setSending] = useState(false);
-  const [prevMessagesLength, setPrevMessagesLength] = useState(0);
-  const [userScrolledUp, setUserScrolledUp] = useState(false);
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
-  const [isReconnecting, setIsReconnecting] = useState(false);
-
-  const handleAvatarUpdate = (newUrl) => {
-    if (onUserUpdate) {
-      onUserUpdate({ avatarUrl: newUrl });
-    }
-  };
-  
-  const connectedRef = useRef(false);
-  const audioStreamRef = useRef(null); // kept for cleanup compatibility (managed inside hook too)
-  const messagesEndRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
-  const chatContainerRef = useRef(null);
-  const sendingRef = useRef(false);
-  const cleanupTimeoutsRef = useRef(new Set());
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  // Check if user is near bottom of chat
-  const isNearBottom = () => {
-    if (!chatContainerRef.current) return true;
-    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-    return scrollHeight - scrollTop - clientHeight < 100; // Within 100px of bottom
-  };
-
-  // Handle scroll events to detect when user scrolls up
-  const handleScroll = () => {
-    if (!chatContainerRef.current) return;
-    const isNear = isNearBottom();
-    setUserScrolledUp(!isNear);
-  };
-
-  // WebSocket connection, reconnection, and typing via hook
-  const lastTypingTimeRef = useRef(0);
-  
-  // Wrapper for setMessages to handle decryption of encrypted messages
-  const setMessagesWithDecryption = useCallback((updater) => {
-    setMessages(prevMessages => {
-      const newMessages = typeof updater === 'function' ? updater(prevMessages) : updater;
-      
-      // Decrypt any encrypted messages
-      return Array.isArray(newMessages) 
-        ? newMessages.map(msg => {
-            // If message has ciphertext and nonce, try to decrypt
-            if (msg.ciphertext && msg.encryptionNonce && msg.senderId) {
-              try {
-                const keyPair = encryption.getKeyPair();
-                const senderPublicKey = encryption.getPublicKeyForUser(msg.senderId);
-                
-                if (senderPublicKey && keyPair) {
-                  const decrypted = encryption.decryptMessage(
-                    msg.ciphertext,
-                    msg.encryptionNonce,
-                    senderPublicKey
-                  );
-                  if (decrypted) {
-                    console.log('Decrypted message:', msg.id);
-                    return {
-                      ...msg,
-                      content: decrypted,
-                      ciphertext: undefined,
-                      encryptionNonce: undefined,
-                      isDecrypted: true
-                    };
-                  }
-                } else {
-                  console.warn('Cannot decrypt message - missing keys for sender:', msg.senderId);
-                }
-              } catch (error) {
-                console.error('Failed to decrypt message:', error);
-                // Keep original encrypted message
-              }
-            }
-            return msg;
-          })
-        : newMessages;
-    });
-  }, [encryption]);
-  
-  const { onTyping: onTypingHook } = useChatSocket({
-    token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
-    userId: user.id,
-    availableUsers,
-    setMessages: setMessagesWithDecryption,
-    setTypingUser,
-    setConnectionStatus,
-    setReconnectAttempts,
-    isReconnecting,
-    setIsReconnecting,
-    connectedRef,
-    typingTimeoutRef,
-    onUserStatusChange: (statusData) => {
-      if (statusData.userId === otherUserId) {
-        setOtherUserOnline(statusData.status === 'online');
-      }
-    }
-  });
-
-  // Handle call end - create call log message
-  const handleCallEnd = useCallback((duration, callType = 'voice') => {
-    const formatDuration = (seconds) => {
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      if (mins > 0) {
-        return `${mins}m ${secs}s`;
-      }
-      return `${secs}s`;
-    };
-
-    const callLabel = callType === 'video' ? 'Video call' : 'Voice call';
-    const callLogMessage = {
-      id: `call-log-${callType}-` + Date.now(),
-      type: 'call',
-      content: `${callLabel} • ${formatDuration(duration)}`,
-      senderId: user.id,
-      receiverId: otherUserId,
-      conversationId,
-      timestamp: new Date().toISOString(),
-      metadata: { duration, callType }
-    };
-
-    setMessages(prev => [...prev, callLogMessage]);
-
-    // Save to backend
-    const authenticatedApi = getAuthenticatedApi();
-    authenticatedApi.post('/api/chat/messages', {
-      type: 'call',
-      content: `${callLabel} • ${formatDuration(duration)}`,
-      receiverId: otherUserId,
-      conversationId,
-      metadata: { duration, callType }
-    }).catch(error => {
-      console.error('Failed to save call log:', error);
-    });
-  }, [user.id, otherUserId, conversationId]);
 
   // Voice call hook
   const {
     callState: voiceCallState,
     incomingCall: incomingVoiceCall,
     callDuration: voiceCallDuration,
+    isMuted: voiceIsMuted,
     startCall: startVoiceCall,
     answerCall: answerVoiceCall,
     rejectCall: rejectVoiceCall,
     endCall: endVoiceCall,
+    toggleMute: toggleVoiceMute,
     localStreamRef: voiceLocalStreamRef,
     remoteStreamRef: voiceRemoteStreamRef
   } = useVoiceCall({
@@ -292,6 +164,97 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
     otherUserId: otherUserId,
     otherUser: otherUser,
     onCallEnd: (duration) => handleCallEnd(duration, 'video')
+  });
+
+  // Scroll / UI state helpers (declared before smart-scroll useEffect)
+  const [lastTypingTime, setLastTypingTime] = useState(0);
+  const [sending, setSending] = useState(false);
+  const [prevMessagesLength, setPrevMessagesLength] = useState(0);
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+
+  const connectedRef = useRef(false);
+  const audioStreamRef = useRef(null); // kept for cleanup compatibility
+  const messagesEndRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const sendingRef = useRef(false);
+  const cleanupTimeoutsRef = useRef(new Set());
+  const lastTypingTimeRef = useRef(0);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const isNearBottom = () => {
+    if (!chatContainerRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    return scrollHeight - scrollTop - clientHeight < 100; // within 100px
+  };
+
+  const handleScroll = () => {
+    if (!isNearBottom()) setUserScrolledUp(true);
+    else setUserScrolledUp(false);
+  };
+
+  // Avatar update handler
+  const handleAvatarUpdate = (newUrl) => {
+    if (onUserUpdate) {
+      onUserUpdate({ avatarUrl: newUrl });
+    }
+  };
+
+  // Call end handler (for voice/video calls)
+  const handleCallEnd = (duration, type) => {
+    console.log(`${type} call ended. Duration: ${duration}s`);
+    // Additional call end logic if needed
+  };
+
+  // Wallpaper panel close handler
+  const closeWallpaperPanel = () => {
+    setWallpaperPanelOpen(false);
+  };
+
+  // Decrypt and set messages
+  const setMessagesWithDecryption = (rawMessages) => {
+    const decrypted = rawMessages.map(msg => {
+      if (msg.ciphertext && msg.nonce && encryption.getKeyPair()) {
+        try {
+          const senderPublicKey = encryption.getPublicKeyForUser(msg.senderId);
+          if (senderPublicKey) {
+            const decryptedContent = encryption.decryptMessage(msg.ciphertext, msg.nonce, senderPublicKey);
+            if (decryptedContent) {
+              return { ...msg, content: decryptedContent, encrypted: true };
+            }
+          }
+        } catch (err) {
+          console.error('Failed to decrypt message:', err);
+        }
+      }
+      return msg;
+    });
+    setMessages(decrypted);
+  };
+
+  // WebSocket connection via hook
+  const { onTyping: onTypingHook } = useChatSocket({
+    token: localStorage.getItem('token'),
+    userId: user.id,
+    availableUsers,
+    setMessages,
+    setTypingUser,
+    setConnectionStatus,
+    setReconnectAttempts,
+    isReconnecting,
+    setIsReconnecting,
+    connectedRef,
+    typingTimeoutRef,
+    onUserStatusChange: (userId, online) => {
+      if (userId === otherUserId) {
+        setOtherUserOnline(online);
+      }
+    }
   });
 
   // Smart scroll behavior - only scroll to bottom when appropriate
@@ -402,7 +365,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
                 localStorage.removeItem('token');
                 localStorage.removeItem('userId');
                 localStorage.removeItem('username');
-                navigate('/signin');
+                window.location.href = '/signin';
                 return;
               }
               
@@ -429,7 +392,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
             localStorage.removeItem('token');
             localStorage.removeItem('userId');
             localStorage.removeItem('username');
-            navigate('/signin');
+            window.location.href = '/signin';
             return;
           }
         }
@@ -911,223 +874,8 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
   const wallpaperIsGradient = resolvedWallpaperUrl && (resolvedWallpaperUrl.startsWith('linear-gradient') || resolvedWallpaperUrl.startsWith('radial-gradient'));
   const wallpaperActive = wallpaperSettings.sourceType !== 'none' && Boolean(resolvedWallpaperUrl);
 
-  // Quick Contact Switcher Component
-  const QuickContactSwitcher = () => {
-    const [searchQuery, setSearchQuery] = React.useState('');
-    const filteredContacts = availableUsers.filter(u => 
-      u.id !== user.id && 
-      (u.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-       u.username?.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-
-    if (!showContactSwitcher) return null;
-
-    return (
-      <div 
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '80px 20px 20px'
-        }}
-        onClick={() => setShowContactSwitcher(false)}
-      >
-        <div 
-          style={{
-            background: theme === 'dark' ? '#1f2937' : '#ffffff',
-            borderRadius: '16px',
-            width: '100%',
-            maxWidth: '500px',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-            maxHeight: '80vh',
-            display: 'flex',
-            flexDirection: 'column',
-            animation: 'slideDown 0.2s ease-out'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Search Header */}
-          <div style={{ padding: '20px', borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#e5e7eb'}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '20px', height: '20px', color: theme === 'dark' ? '#9ca3af' : '#6b7280' }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search contacts..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                autoFocus
-                style={{
-                  flex: 1,
-                  border: 'none',
-                  outline: 'none',
-                  background: 'transparent',
-                  fontSize: '16px',
-                  color: theme === 'dark' ? '#e5e7eb' : '#1f2937',
-                  padding: '8px 0'
-                }}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  style={{
-                    padding: '4px',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: theme === 'dark' ? '#9ca3af' : '#6b7280'
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '18px', height: '18px' }}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-            <div style={{ 
-              marginTop: '8px', 
-              fontSize: '12px', 
-              color: theme === 'dark' ? '#9ca3af' : '#6b7280' 
-            }}>
-              {filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''} found
-            </div>
-          </div>
-
-          {/* Contact List */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-            {filteredContacts.length === 0 ? (
-              <div style={{
-                padding: '40px 20px',
-                textAlign: 'center',
-                color: theme === 'dark' ? '#9ca3af' : '#6b7280'
-              }}>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '48px', height: '48px', margin: '0 auto 12px', opacity: 0.5 }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                </svg>
-                <div>No contacts found</div>
-              </div>
-            ) : (
-              filteredContacts.map(contact => (
-                <button
-                  key={contact.id}
-                  onClick={() => {
-                    selectOtherUser(contact.id);
-                    setShowContactSwitcher(false);
-                    setSearchQuery('');
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    background: otherUserId === contact.id 
-                      ? (theme === 'dark' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.1)')
-                      : 'transparent',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s',
-                    textAlign: 'left',
-                    marginBottom: '4px'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (otherUserId !== contact.id) {
-                      e.currentTarget.style.background = theme === 'dark' ? 'rgba(75, 85, 99, 0.3)' : 'rgba(243, 244, 246, 1)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (otherUserId !== contact.id) {
-                      e.currentTarget.style.background = 'transparent';
-                    }
-                  }}
-                >
-                  <img
-                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(contact.displayName || contact.username)}&size=40&background=6366f1&color=ffffff&bold=true`}
-                    alt=""
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      flexShrink: 0
-                    }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontWeight: 600,
-                      fontSize: '14px',
-                      color: theme === 'dark' ? '#e5e7eb' : '#1f2937',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>
-                      {contact.displayName || contact.username}
-                    </div>
-                    {contact.displayName && (
-                      <div style={{
-                        fontSize: '12px',
-                        color: theme === 'dark' ? '#9ca3af' : '#6b7280',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}>
-                        @{contact.username}
-                      </div>
-                    )}
-                  </div>
-                  {otherUserId === contact.id && (
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{ width: '20px', height: '20px', color: '#6366f1' }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                    </svg>
-                  )}
-                </button>
-              ))
-            )}
-          </div>
-
-          {/* Quick tip */}
-          <div style={{
-            padding: '12px 20px',
-            borderTop: `1px solid ${theme === 'dark' ? '#374151' : '#e5e7eb'}`,
-            fontSize: '12px',
-            color: theme === 'dark' ? '#9ca3af' : '#6b7280',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '16px', height: '16px' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-            </svg>
-            Press ESC or click outside to close
-          </div>
-        </div>
-
-        <style>
-          {`
-            @keyframes slideDown {
-              from { opacity: 0; transform: translateY(-20px); }
-              to { opacity: 1; transform: translateY(0); }
-            }
-          `}
-        </style>
-      </div>
-    );
-  };
-
   return (
     <div style={{ background: colors.bg, minHeight: '100vh' }}>
-      {/* Quick Contact Switcher Overlay */}
-      <QuickContactSwitcher />
-      
       {/* WhatsApp-style chat container */}
       <div style={{ maxWidth: '64rem', margin: '0 auto', height: '100vh', display: 'flex', flexDirection: 'column', background: colors.chatBg, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', borderRadius: '8px', overflow: 'hidden' }}>
         {/* Modern Chat Header */}
@@ -1180,7 +928,16 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
             )}
             {/* Messages container with padding for mobile/desktop */}
             <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', zIndex: 1 }}>
-              <ChatMessages messages={messages} user={user} otherUser={otherUser} onEdit={onEdit} onDelete={onDelete} onReply={handleReply} onForward={(m)=>{ setForwardingMessage(m); setShowForwardModal(true); }} colors={colors} />
+              <ChatMessages 
+                messages={messages} 
+                user={user} 
+                otherUser={otherUser} 
+                onEdit={onEdit} 
+                onDelete={onDelete} 
+                onReply={handleReply} 
+                onForward={(m)=>{ setForwardingMessage(m); setShowForwardModal(true); }} 
+                colors={colors}
+              />
               <TypingIndicator typingUser={typingUser} colors={colors} />
             </div>
             
@@ -1288,7 +1045,9 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         onClose={() => setShowOtherUserModal(false)}
         availableUsers={availableUsers}
         currentUserId={user.id}
+        currentChatUserId={otherUserId}
         onSelect={(id) => selectOtherUser(id)}
+        darkMode={theme === 'dark'}
       />
 
       {/* Forward Message Modal */}
@@ -1297,6 +1056,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         onClose={() => { setShowForwardModal(false); setForwardingMessage(null); }}
         availableUsers={availableUsers}
         currentUserId={user.id}
+        currentChatUserId={otherUserId}
         onSelect={async (targetId) => {
           try {
             if (!forwardingMessage) return;
@@ -1315,6 +1075,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
             alert(err.response?.data?.message || 'Failed to forward message');
           }
         }}
+        darkMode={theme === 'dark'}
       />
 
       {/* Voice Call Modal */}

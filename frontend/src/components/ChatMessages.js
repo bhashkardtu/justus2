@@ -6,9 +6,9 @@ import CallMessage from './CallMessage';
 import { fmtTime } from '../utils/format';
 
 export default function ChatMessages({ messages, user, otherUser, onEdit, onDelete, onReply, onForward, colors }) {
-  const [showMenu, setShowMenu] = useState(null); // { messageId, x, y }
-  const [hoveredMessage, setHoveredMessage] = useState(null);
   const [showOriginalMap, setShowOriginalMap] = useState({});
+  const [contextMenu, setContextMenu] = useState(null);
+  const longPressTimer = React.useRef(null);
 
   const toggleShowOriginal = (msgId) => {
     setShowOriginalMap(prev => ({
@@ -87,29 +87,44 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
     );
   };
 
-  const handleMenuToggle = (e, msg) => {
-    e.stopPropagation();
-    const rect = e.currentTarget.getBoundingClientRect();
-    setShowMenu({
-      messageId: msg.id || msg._id,
-      x: rect.left,
-      y: rect.bottom + 5,
+  const handleContextMenu = (e, msg) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
       message: msg
     });
   };
 
-  const handleCloseMenu = () => {
-    setShowMenu(null);
+  const handleLongPressStart = (e, msg) => {
+    longPressTimer.current = setTimeout(() => {
+      const touch = e.touches[0];
+      setContextMenu({
+        x: touch.clientX,
+        y: touch.clientY,
+        message: msg,
+        isMobile: true
+      });
+    }, 500);
   };
 
-  // Close menu when clicking anywhere
+  const handleLongPressEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+    }
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu(null);
+  };
+
   React.useEffect(() => {
-    if (showMenu) {
-      const handler = () => handleCloseMenu();
+    if (contextMenu) {
+      const handler = () => closeContextMenu();
       document.addEventListener('click', handler);
       return () => document.removeEventListener('click', handler);
     }
-  }, [showMenu]);
+  }, [contextMenu]);
 
   return (
     <>
@@ -134,17 +149,25 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
         }
         
         const bubbleStyle = isOwn 
-          ? { alignSelf: 'flex-end', background: colors.bubbleOut, color: colors.bubbleOutText, borderRadius: '8px 0 8px 8px', padding: '10px 14px', maxWidth: '70%', marginBottom: '2px', boxShadow: '0 1px 1px rgba(0,0,0,0.1)', position: 'relative' }
-          : { alignSelf: 'flex-start', background: colors.bubbleIn, color: colors.bubbleInText, borderRadius: '0 8px 8px 8px', padding: '10px 14px', maxWidth: '70%', marginBottom: '2px', boxShadow: '0 1px 1px rgba(0,0,0,0.1)', position: 'relative' };
+          ? { background: colors.bubbleOut, color: colors.bubbleOutText, borderRadius: '8px 0 8px 8px', padding: '10px 14px', maxWidth: '70%', boxShadow: '0 1px 1px rgba(0,0,0,0.1)', position: 'relative' }
+          : { background: colors.bubbleIn, color: colors.bubbleInText, borderRadius: '0 8px 8px 8px', padding: '10px 14px', maxWidth: '70%', boxShadow: '0 1px 1px rgba(0,0,0,0.1)', position: 'relative' };
         
         return (
           <div 
             key={msg.id || idx} 
-            style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}
-            onMouseEnter={() => setHoveredMessage(msg.id || msg._id)}
-            onMouseLeave={() => setHoveredMessage(null)}
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              alignItems: isOwn ? 'flex-end' : 'flex-start',
+              position: 'relative',
+              marginBottom: '2px'
+            }}
           >
             <div 
+              onContextMenu={(e) => handleContextMenu(e, msg)}
+              onTouchStart={(e) => handleLongPressStart(e, msg)}
+              onTouchEnd={handleLongPressEnd}
+              onTouchMove={handleLongPressEnd}
               style={bubbleStyle}
             >
               {msg.replyTo && renderReplyTo(msg.replyTo, messages)}
@@ -175,151 +198,190 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
               {msg.type === 'image' && <ImageMessage message={msg} />}
               {msg.type === 'audio' && <AudioMessage message={msg} />}
               {msg.type === 'document' && <DocumentMessage message={msg} />}
-            </div>
-
-            {/* Dropdown Menu Button - appears on hover */}
-            {hoveredMessage === (msg.id || msg._id) && (
-              <button
-                onClick={(e) => handleMenuToggle(e, msg)}
-                style={{
-                  position: 'absolute',
-                  top: '4px',
-                  right: isOwn ? '4px' : 'auto',
-                  left: isOwn ? 'auto' : '4px',
-                  background: 'rgba(0,0,0,0.6)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '24px',
-                  height: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontSize: '16px',
-                  padding: 0,
-                  zIndex: 10,
-                  transition: 'background 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.8)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.6)'}
-                title="Message options"
+              {/* Mobile: Arrow-down button to open context menu */}
+              {isOwn && (
+                <span
+                  className="mobile-context-arrow"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.08)',
+                    position: 'absolute',
+                    left: '-34px',
+                    right: 'auto',
+                    top: 8,
+                    zIndex: 2,
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                    cursor: 'pointer',
+                    border: 'none',
+                    fontSize: 18,
+                    color: colors.timestamp || '#888',
+                    visibility: 'hidden',
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setContextMenu({
+                      x: e.currentTarget.getBoundingClientRect().left,
+                      y: e.currentTarget.getBoundingClientRect().top,
+                      message: msg,
+                      isMobile: true
+                    });
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                </span>
+              )}
+              <div
+                className={
+                  isOwn
+                    ? 'chat-bubble chat-bubble-own' // sender styling
+                    : 'chat-bubble chat-bubble-other' // receiver styling
+                }
+                style={bubbleStyle}
               >
-                ⋮
-              </button>
-            )}
+                {msg.text}
+              </div>
+              {!isOwn && (
+                <span
+                  className="mobile-context-arrow"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.08)',
+                    position: 'absolute',
+                    left: 'auto',
+                    right: '-34px',
+                    top: 8,
+                    zIndex: 2,
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                    cursor: 'pointer',
+                    border: 'none',
+                    fontSize: 18,
+                    color: colors.timestamp || '#888',
+                    visibility: 'hidden',
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setContextMenu({
+                      x: e.currentTarget.getBoundingClientRect().right,
+                      y: e.currentTarget.getBoundingClientRect().top,
+                      message: msg,
+                      isMobile: true
+                    });
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                </span>
+              )}
+            </div>
 
             <div style={{ fontSize: '0.75rem', color: colors.timestamp, marginTop: '2px', textAlign: isOwn ? 'right' : 'left' }}>
               {fmtTime(msg.timestamp || msg.createdAt)}
               {isOwn && msg.read && <span style={{ marginLeft: '8px', color: '#22c55e' }}>✓✓</span>}
               {msg.temporary && <span style={{ marginLeft: '8px', color: '#eab308' }}>sending...</span>}
             </div>
+            {/* Show arrow only on mobile via CSS */}
+            <style>{`
+              @media (max-width: 600px) {
+                .mobile-context-arrow {
+                  visibility: visible !important;
+                }
+              }
+            `}</style>
           </div>
         );
       })}
 
-      {/* Context Menu */}
-      {showMenu && (
-        <div
-          style={{
-            position: 'fixed',
-            top: showMenu.y,
-            left: showMenu.x,
-            background: colors.chatBg || '#fff',
-            border: `1px solid ${colors.inputBorder || '#ddd'}`,
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            zIndex: 1000,
-            minWidth: '150px',
-            overflow: 'hidden'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Reply Option */}
+      {/* Context Menu - Modern, positioned left/right of bubble, not blocking */}
+      {contextMenu && (
+        <>
           <div
             style={{
-              padding: '12px 16px',
-              cursor: 'pointer',
-              background: 'transparent',
-              borderBottom: `1px solid ${colors.inputBorder || '#eee'}`,
-              color: colors.inputText || '#222',
-              transition: 'background 0.2s'
+              position: 'fixed',
+              inset: 0,
+              background: contextMenu.isMobile ? 'rgba(0,0,0,0.5)' : 'transparent',
+              zIndex: 999
             }}
-            onMouseEnter={(e) => e.target.style.background = colors.inputBg || '#f5f5f5'}
-            onMouseLeave={(e) => e.target.style.background = 'transparent'}
-            onClick={() => {
-              if (onReply) onReply(showMenu.message);
-              handleCloseMenu();
-            }}
-          >
-            💬 Reply
-          </div>
-
-          {/* Forward Option */}
+            onClick={closeContextMenu}
+          />
           <div
             style={{
-              padding: '12px 16px',
-              cursor: 'pointer',
-              background: 'transparent',
-              borderBottom: `1px solid ${colors.inputBorder || '#eee'}`,
-              color: colors.inputText || '#222',
-              transition: 'background 0.2s'
+              position: 'fixed',
+              top: (contextMenu.y - 75 - (contextMenu.isMobile ? 0 : 120)),
+              left: contextMenu.message.senderId === user.id
+                ? (contextMenu.x - 270) // sender: menu to left
+                : (contextMenu.x + 40), // receiver: menu to right
+              borderRadius: '8px',
+              minWidth: '200px',
+              background: colors.chatBg || '#222',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+              zIndex: 1000,
+              overflow: 'hidden',
+              color: colors.inputText || '#fff',
+              fontSize: '15px',
+              transition: 'top 0.15s, left 0.15s'
             }}
-            onMouseEnter={(e) => e.target.style.background = colors.inputBg || '#f5f5f5'}
-            onMouseLeave={(e) => e.target.style.background = 'transparent'}
-            onClick={() => {
-              if (onForward) onForward(showMenu.message);
-              handleCloseMenu();
-            }}
+            onClick={(e) => e.stopPropagation()}
           >
-            📤 Forward
+            {/* Menu items with icons */}
+            <div style={{ padding: '8px 0' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', cursor: 'pointer', borderBottom: `1px solid ${colors.inputBorder || '#333'}` }}
+                onClick={() => { onReply(contextMenu.message); closeContextMenu(); }}
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                Reply
+              </div>
+              {contextMenu.message.senderId === user.id && contextMenu.message.type === 'text' && (
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', cursor: 'pointer', borderBottom: `1px solid ${colors.inputBorder || '#333'}` }}
+                  onClick={() => { onEdit(contextMenu.message); closeContextMenu(); }}
+                >
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                  Edit
+                </div>
+              )}
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', cursor: 'pointer', borderBottom: `1px solid ${colors.inputBorder || '#333'}` }}
+                onClick={() => { onForward(contextMenu.message); closeContextMenu(); }}
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                Forward
+              </div>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', cursor: 'pointer', color: '#ef4444' }}
+                onClick={() => { onDelete(contextMenu.message); closeContextMenu(); }}
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                {contextMenu.message.senderId === user.id ? 'Delete for everyone' : 'Delete for me'}
+              </div>
+            </div>
+            {contextMenu.isMobile && (
+              <div
+                style={{
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  borderTop: `1px solid ${colors.inputBorder || '#333'}`,
+                  color: colors.inputText || '#fff',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  textAlign: 'center'
+                }}
+                onClick={closeContextMenu}
+              >
+                Cancel
+              </div>
+            )}
           </div>
-
-          {/* Edit Option (only for own text messages) */}
-          {showMenu.message.senderId === user.id && showMenu.message.type === 'text' && (
-            <div
-              style={{
-                padding: '12px 16px',
-                cursor: 'pointer',
-                background: 'transparent',
-                borderBottom: `1px solid ${colors.inputBorder || '#eee'}`,
-                color: colors.inputText || '#222',
-                transition: 'background 0.2s'
-              }}
-              onMouseEnter={(e) => e.target.style.background = colors.inputBg || '#f5f5f5'}
-              onMouseLeave={(e) => e.target.style.background = 'transparent'}
-              onClick={() => {
-                if (onEdit) onEdit(showMenu.message);
-                handleCloseMenu();
-              }}
-            >
-              ✏️ Edit
-            </div>
-          )}
-
-          {/* Delete Option (only for own messages) */}
-          {showMenu.message.senderId === user.id && (
-            <div
-              style={{
-                padding: '12px 16px',
-                cursor: 'pointer',
-                background: 'transparent',
-                color: '#ef4444',
-                transition: 'background 0.2s'
-              }}
-              onMouseEnter={(e) => e.target.style.background = colors.inputBg || '#f5f5f5'}
-              onMouseLeave={(e) => e.target.style.background = 'transparent'}
-              onClick={() => {
-                if (onDelete) {
-                  onDelete(showMenu.message);
-                }
-                handleCloseMenu();
-              }}
-            >
-              🗑️ Delete
-            </div>
-          )}
-        </div>
+        </>
       )}
     </>
   );

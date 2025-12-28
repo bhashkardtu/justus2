@@ -155,8 +155,8 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                 </div>
               )}
 
-              {/* Dropdown trigger */}
-              {mine && !m.deleted && (
+              {/* Dropdown trigger - Available for both sender and receiver */}
+              {!m.deleted && (
                 <div className="relative">
                   <button ref={triggerRef} onClick={() => setMenuOpen(s => !s)} className="signal-icon-button">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -164,9 +164,23 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                     </svg>
                   </button>
                   {menuOpen && (
-                    <div ref={menuRef} className="absolute right-0 top-8 bg-white text-gray-800 rounded-lg shadow-lg border border-gray-200 py-1 w-32 z-50 signal-slide-up">
-                      <button onClick={() => { setMenuOpen(false); onEdit(m); }} className="w-full text-left px-3 py-2 hover:bg-gray-100">Edit</button>
-                      <button onClick={() => { setMenuOpen(false); onDelete(m); }} className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600">Delete</button>
+                    <div ref={menuRef} className="absolute right-0 top-8 bg-white text-gray-800 rounded-lg shadow-lg border border-gray-200 py-1 w-40 z-50 signal-slide-up">
+                      {mine && (
+                        <>
+                          <button onClick={() => { setMenuOpen(false); onEdit(m); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-100 flex items-center gap-2 text-sm">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                            Edit
+                          </button>
+                        </>
+                      )}
+                      <button onClick={() => { setMenuOpen(false); onDelete(m); }} className="w-full text-left px-4 py-2.5 hover:bg-red-50 text-red-600 flex items-center gap-2 text-sm">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M9 2a1 1 0 00-2 0H4a1 1 0 000 2v12a2 2 0 002 2h8a2 2 0 002-2V4a1 1 0 100-2h-3zM8 11a1 1 0 112 0v3a1 1 0 11-2 0v-3zm4-1a1 1 0 00-1 1v3a1 1 0 102 0v-3a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        Delete {mine ? 'for everyone' : 'for me'}
+                      </button>
                     </div>
                   )}
                 </div>

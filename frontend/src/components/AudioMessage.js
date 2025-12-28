@@ -208,13 +208,6 @@ export default function AudioMessage({ message, mine }) {
 
   return (
     <div className="flex items-center space-x-3 py-2">
-      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${mine ? 'bg-indigo-500' : 'bg-gray-200'}`}>
-        <svg className={`w-6 h-6 ${mine ? 'text-white' : 'text-gray-600'}`} fill="currentColor" viewBox="0 0 20 20">
-          <path d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4z" />
-          <path d="M5.5 9.643a.75.75 0 00-1.5 0V10c0 3.06 2.29 5.585 5.25 5.954V17.5h-1.5a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5H10.5v-1.546A6.001 6.001 0 0016 10v-.357a.75.75 0 00-1.5 0V10a4.5 4.5 0 01-9 0v-.357z" />
-        </svg>
-      </div>
-
       <div className="flex-1 min-w-0">
         <div className={`p-4 rounded-xl ${mine ? 'bg-indigo-100/80' : 'bg-gray-100/80'} border border-gray-200/50 backdrop-blur-sm`}>
           {loading ? (
@@ -268,12 +261,12 @@ export default function AudioMessage({ message, mine }) {
             <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${
               mine ? 'bg-emerald-50 text-emerald-800' : 'bg-emerald-100 text-emerald-800'
             }`} style={{ borderLeft: '3px solid #10b981' }}>
-              <div className="flex items-center justify-between gap-3 mb-1">
+              <div className="flex items-start justify-between gap-2 mb-1">
                 <div className="font-semibold text-xs uppercase tracking-wide opacity-80">Translation</div>
                 <button
                   type="button"
                   onClick={handleSpeakTranslation}
-                  className="text-xs font-semibold px-3 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                  className="text-xs font-semibold px-3 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex-shrink-0"
                 >
                   {speakingTranslated ? 'Stop' : 'Play'} translation
                 </button>

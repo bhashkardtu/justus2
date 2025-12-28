@@ -4,7 +4,10 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const api = axios.create({ 
     baseURL: API_URL,
-    withCredentials: true // Important: This ensures cookies are sent with requests
+    withCredentials: true, // Important: This ensures cookies are sent with requests
+    headers: {
+        'ngrok-skip-browser-warning': 'true' // Skip ngrok warning page
+    }
 });
 
 // Add request interceptor to ensure token is always included for backwards compatibility
@@ -49,7 +52,10 @@ export function getAuthenticatedApi() {
     const token = localStorage.getItem('token');
     const authenticatedApi = axios.create({ 
         baseURL: API_URL,
-        withCredentials: true // Ensure cookies are sent
+        withCredentials: true, // Ensure cookies are sent
+        headers: {
+            'ngrok-skip-browser-warning': 'true' // Skip ngrok warning page
+        }
     });
     
     if (token) {

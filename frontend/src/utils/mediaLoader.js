@@ -47,7 +47,8 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Accept': 'audio/*,image/*'
+          'Accept': 'audio/*,image/*',
+          'ngrok-skip-browser-warning': 'true' // Skip ngrok warning page
         },
         mode: 'cors',
         cache: 'no-store',
@@ -84,7 +85,8 @@ export const loadAuthenticatedMedia = async (mediaUrl, mediaId) => {
     const queryResponse = await fetch(urlWithToken, {
       method: 'GET',
       headers: {
-        'Accept': 'audio/*,image/*'
+        'Accept': 'audio/*,image/*',
+        'ngrok-skip-browser-warning': 'true' // Skip ngrok warning page
       },
       mode: 'cors',
       cache: 'no-store',

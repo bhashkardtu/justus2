@@ -1,6 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoadingSpinner from './components/LoadingSpinner';
+import ProfileModal from './components/ProfileModal';
 import api, { setAuthToken } from './services/api';
 
 // Lazy load pages for better performance
@@ -16,6 +17,7 @@ export default function App(){
   const [view, setView] = useState('login'); // login, signup, verify
   const [verificationEmail, setVerificationEmail] = useState('');
   const [showContactSwitcher, setShowContactSwitcher] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Check for invite link on load
   useEffect(() => {
@@ -224,6 +226,22 @@ export default function App(){
                 </svg>
               </button>
             )}
+            {/* Add Contact button - opens ChatPage's Add Contact modal via event
+            {user && (
+              <button
+                onClick={() => window.dispatchEvent(new Event('open-add-contact'))}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  darkMode
+                    ? 'bg-gray-700 hover:bg-gray-600 text-green-400'
+                    : 'bg-gray-100 hover:bg-gray-200 text-green-600'
+                }`}
+                title="Add contact"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </button>
+            )} */}
             
             {/* Theme Toggle Button - Always Visible */}
             <button
@@ -247,6 +265,23 @@ export default function App(){
                 </svg>
               )}
             </button>
+            {/* Profile button - opens profile modal */}
+            {user && (
+              <button
+                onClick={() => setShowProfileModal(true)}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  darkMode 
+                    ? 'bg-gray-700 hover:bg-gray-600 text-indigo-400' 
+                    : 'bg-gray-100 hover:bg-gray-200 text-indigo-600'
+                }`}
+                title="View Profile"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 11.25a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 21v-1.125A6.375 6.375 0 0013.125 13.5h-2.25A6.375 6.375 0 004.5 19.875V21" />
+                </svg>
+              </button>
+            )}
             {user && (
               <>
                 <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
@@ -257,6 +292,20 @@ export default function App(){
           </div>
         </div>
       </header>
+      {/* Profile modal for viewing/updating current user profile */}
+      <ProfileModal
+        show={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+        onAvatarUpdate={(newUrl) => {
+          handleUserUpdate({ avatarUrl: newUrl });
+          setShowProfileModal(false);
+        }}
+        onProfileUpdate={(updates) => {
+          handleUserUpdate(updates);
+        }}
+        theme={theme}
+      />
       <main className="max-w-6xl mx-auto py-8 px-4">
         <Suspense fallback={
           <div className="flex items-center justify-center min-h-[60vh]">
