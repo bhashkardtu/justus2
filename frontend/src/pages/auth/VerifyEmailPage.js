@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { verifyEmail, resendVerification } from '../../services/auth';
 import { setAuthToken } from '../../services/api';
 
-export default function VerifyEmailPage({ email, onVerificationSuccess, theme }) {
+export default function VerifyEmailPage({ email, onVerificationSuccess, onBack, theme }) {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -102,8 +102,8 @@ export default function VerifyEmailPage({ email, onVerificationSuccess, theme })
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 className={`w-full px-4 py-3 text-center text-2xl tracking-widest rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 outline-none ${darkMode
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'bg-gray-50 border-gray-200 text-gray-900'
+                  ? 'bg-gray-700 border-gray-600 text-white'
+                  : 'bg-gray-50 border-gray-200 text-gray-900'
                   }`}
                 placeholder="000000"
               />
@@ -129,6 +129,15 @@ export default function VerifyEmailPage({ email, onVerificationSuccess, theme })
                 {resending ? 'Sending...' : timer > 0 ? `Resend in ${timer}s` : 'Resend Code'}
               </button>
             </p>
+          </div>
+
+          <div className="mt-8 text-center border-t border-gray-100 dark:border-gray-700 pt-6">
+            <button
+              onClick={onBack}
+              className={`text-sm font-medium text-indigo-500 hover:text-indigo-400 transition-colors ${loading ? 'opacity-50 pointer-events-none' : ''}`}
+            >
+              ← Edit Email / Back to Sign In
+            </button>
           </div>
         </div>
       </div>

@@ -6,7 +6,7 @@ import VideoMessage from '../messages/VideoMessage';
 import CallMessage from '../messages/CallMessage';
 import { fmtTime } from '../../../utils/format';
 
-export default function ChatMessages({ messages, user, otherUser, onEdit, onDelete, onReply, onForward, colors }) {
+export default function ChatMessages({ messages, user, otherUser, onEdit, onDelete, onReply, onForward, colors, theme }) {
   const [showOriginalMap, setShowOriginalMap] = useState({});
   const [contextMenu, setContextMenu] = useState(null);
   const longPressTimer = React.useRef(null);
@@ -151,9 +151,32 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
           );
         }
 
+        const isDarkMode = theme === 'dark';
         const bubbleStyle = isOwn
-          ? { background: colors.bubbleOut, color: colors.bubbleOutText, borderRadius: '8px 0 8px 8px', padding: '10px 14px', maxWidth: '70%', boxShadow: '0 1px 1px rgba(0,0,0,0.1)', position: 'relative' }
-          : { background: colors.bubbleIn, color: colors.bubbleInText, borderRadius: '0 8px 8px 8px', padding: '10px 14px', maxWidth: '70%', boxShadow: '0 1px 1px rgba(0,0,0,0.1)', position: 'relative' };
+          ? {
+            background: colors.bubbleOut,
+            color: colors.bubbleOutText,
+            borderRadius: '20px 4px 20px 20px',
+            padding: '10px 14px',
+            maxWidth: '75%',
+            boxShadow: isDarkMode ? '0 4px 6px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.08)',
+            position: 'relative',
+            backdropFilter: 'blur(25px)',
+            WebkitBackdropFilter: 'blur(25px)',
+            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid rgba(255, 255, 255, 0.5)'
+          }
+          : {
+            background: colors.bubbleIn,
+            color: colors.bubbleInText,
+            borderRadius: '4px 20px 20px 20px',
+            padding: '10px 14px',
+            maxWidth: '75%',
+            boxShadow: isDarkMode ? '0 4px 6px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.08)',
+            position: 'relative',
+            backdropFilter: 'blur(25px)',
+            WebkitBackdropFilter: 'blur(25px)',
+            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.4)' : '1px solid rgba(255, 255, 255, 0.5)'
+          };
 
         return (
           <div
@@ -178,10 +201,7 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {msg.translatedText && !isOwn ? (
                     <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '2px' }}>
-                        <span style={{ fontSize: '10px', opacity: 0.8, fontWeight: 'bold', textTransform: 'uppercase' }}>
-                          {showOriginalMap[msg.id] ? 'Original' : 'Translated'}
-                        </span>
+                      <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', marginBottom: '4px', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '2px' }}>
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleShowOriginal(msg.id); }}
                           style={{ background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', fontSize: '10px', cursor: 'pointer', padding: 0, opacity: 0.8 }}
@@ -200,7 +220,7 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
               )}
               {msg.type === 'image' && <ImageMessage message={msg} mine={isOwn} />}
               {msg.type === 'video' && <VideoMessage message={msg} mine={isOwn} />}
-              {msg.type === 'audio' && <AudioMessage message={msg} mine={isOwn} />}
+              {msg.type === 'audio' && <AudioMessage message={msg} mine={isOwn} colors={colors} />}
               {msg.type === 'document' && <DocumentMessage message={msg} mine={isOwn} />}
               {/* Mobile: Arrow-down button to open context menu */}
               {isOwn && (
@@ -239,16 +259,7 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
                 </span>
               )}
-              <div
-                className={
-                  isOwn
-                    ? 'chat-bubble chat-bubble-own' // sender styling
-                    : 'chat-bubble chat-bubble-other' // receiver styling
-                }
-                style={bubbleStyle}
-              >
-                {msg.text}
-              </div>
+
               {!isOwn && (
                 <span
                   className="mobile-context-arrow"

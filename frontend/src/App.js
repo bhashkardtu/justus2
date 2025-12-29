@@ -9,12 +9,14 @@ const ChatPage = lazy(() => import('./pages/chat/ChatPage'));
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const SignupPage = lazy(() => import('./pages/auth/SignupPage'));
 const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmailPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
+
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
-  const [view, setView] = useState('login'); // login, signup, verify
+  const [view, setView] = useState('login'); // login, signup, verify, forgot-password, reset-password
   const [verificationEmail, setVerificationEmail] = useState('');
   const [showContactSwitcher, setShowContactSwitcher] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -29,6 +31,8 @@ export default function App() {
         // Clean URL to avoid re-processing
         window.history.replaceState({}, document.title, '/');
       }
+    } else if (path === '/forgot-password' || path === '/forgotpassword') {
+      setView('forgot-password');
     }
   }, []);
 
@@ -132,9 +136,14 @@ export default function App() {
     const darkMode = theme === 'dark';
     return (
       <div className={`min-h-screen flex items-center justify-center ${darkMode
-        ? 'bg-gray-900'
-        : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
+        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-black'
+        : 'bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300'
         }`}>
+        {/* Abstract shapes for visual interest behind glass */}
+        <div className={`fixed top-1/4 left-1/4 w-72 h-72 rounded-full filter blur-xl opacity-70 animate-blob pointer-events-none will-change-transform ${darkMode ? 'bg-gray-700/30' : 'bg-gray-400/30'}`}></div>
+        <div className={`fixed top-1/3 right-1/4 w-72 h-72 rounded-full filter blur-xl opacity-70 animate-blob animation-delay-2000 pointer-events-none will-change-transform ${darkMode ? 'bg-slate-700/30' : 'bg-gray-500/30'}`}></div>
+        <div className={`fixed -bottom-8 left-1/3 w-72 h-72 rounded-full filter blur-xl opacity-70 animate-blob animation-delay-4000 pointer-events-none will-change-transform ${darkMode ? 'bg-zinc-700/30' : 'bg-gray-400/30'}`}></div>
+
         <LoadingSpinner size="lg" text="Loading JustUs..." />
       </div>
     );
@@ -171,15 +180,28 @@ export default function App() {
         <VerifyEmailPage
           email={verificationEmail}
           onVerificationSuccess={handleLogin}
+          onBack={() => setView('login')}
           theme={theme}
         />
       );
     }
 
+    if (view === 'forgot-password') {
+      return (
+        <ForgotPasswordPage
+          onBackToLogin={() => setView('login')}
+          theme={theme}
+        />
+      );
+    }
+
+
+
     return (
       <LoginPage
         onLogin={handleLogin}
         onSwitchToSignup={() => setView('signup')}
+        onSwitchToForgotPassword={() => setView('forgot-password')}
         onRequiresVerification={(email) => {
           setVerificationEmail(email);
           setView('verify');
@@ -191,13 +213,18 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className={`min-h-screen ${darkMode
-        ? 'bg-gray-900'
-        : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
+      <div className={`min-h-screen relative overflow-hidden ${darkMode
+        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-black'
+        : 'bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300'
         }`}>
-        <header className={`shadow-lg border-b ${darkMode
-          ? 'bg-gray-800 border-gray-700'
-          : 'bg-white border-gray-200'
+        {/* Abstract shapes for visual interest behind glass - Fixed positioning for entire app */}
+        <div className={`fixed top-1/4 left-1/4 w-96 h-96 rounded-full filter blur-3xl opacity-50 animate-blob pointer-events-none -z-10 will-change-transform ${darkMode ? 'bg-gray-700/20' : 'bg-gray-400/30'}`}></div>
+        <div className={`fixed top-1/3 right-1/4 w-96 h-96 rounded-full filter blur-3xl opacity-50 animate-blob animation-delay-2000 pointer-events-none -z-10 will-change-transform ${darkMode ? 'bg-slate-700/20' : 'bg-gray-500/30'}`}></div>
+        <div className={`fixed -bottom-8 left-1/3 w-96 h-96 rounded-full filter blur-3xl opacity-50 animate-blob animation-delay-4000 pointer-events-none -z-10 will-change-transform ${darkMode ? 'bg-zinc-700/20' : 'bg-gray-400/30'}`}></div>
+
+        <header className={`shadow-lg border-b sticky top-0 z-50 backdrop-blur-md transition-colors duration-300 ${darkMode
+          ? 'bg-black/20 border-white/10'
+          : 'bg-white/10 border-white/20'
           }`}>
           <div className="max-w-6xl mx-auto py-4 px-6 flex justify-between items-center">
             <div className="flex items-center space-x-3">

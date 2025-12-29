@@ -45,12 +45,20 @@ export default function ComposeBar({
       <form
         onSubmit={send}
         style={{
-          background: isDragging ? (colors.bg === '#0b141a' ? '#1f2c33' : '#e0e7ff') : colors.inputBg,
-          borderTop: `1px solid ${colors.inputBorder}`,
+          background: isDragging ? (theme === 'dark' ? 'rgba(31, 44, 51, 0.8)' : 'rgba(224, 231, 255, 0.6)') : colors.inputBg,
+          backdropFilter: 'blur(25px)',
+          WebkitBackdropFilter: 'blur(25px)',
+          borderRadius: '24px',
+          margin: '0 16px 16px 16px',
+          border: `1px solid ${colors.inputBorder}`,
+          boxShadow: theme === 'dark' ? '0 8px 32px 0 rgba(31, 38, 135, 0.1)' : '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
           display: 'flex',
           flexDirection: 'column',
           position: 'relative',
-          transition: 'background 0.2s ease'
+          transition: 'background 0.2s ease',
+          width: 'calc(100% - 32px)',
+          alignSelf: 'center',
+          maxWidth: '900px'
         }}
         onDragOver={(e) => {
           e.preventDefault();
@@ -146,7 +154,7 @@ export default function ComposeBar({
           </button>
 
           <input
-            style={{ flex: 1, minWidth: 0, border: 'none', background: colors.inputBg, color: colors.inputText, padding: 'clamp(6px, 2vw, 8px) clamp(8px, 2.5vw, 12px)', borderRadius: '20px', fontSize: 'clamp(0.875rem, 4vw, 1rem)', outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, border: 'none', background: 'rgba(255, 255, 255, 0.2)', color: colors.inputText, padding: 'clamp(6px, 2vw, 8px) clamp(8px, 2.5vw, 12px)', borderRadius: '20px', fontSize: 'clamp(0.875rem, 4vw, 1rem)', outline: 'none' }}
             type="text"
             placeholder={otherUser ? `Message ${otherUser.displayName || otherUser.username}` : 'Type a message...'}
             value={text}

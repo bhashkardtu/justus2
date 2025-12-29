@@ -83,7 +83,11 @@ export default function ChatHeader({
       display: 'flex',
       alignItems: 'center',
       gap: 'clamp(6px, 2vw, 12px)',
-      borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#e5e7eb'}`
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.4)'}`,
+      position: 'relative',
+      zIndex: 20
     }}>
       {/* Avatar + User Info Section */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>

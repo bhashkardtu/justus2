@@ -849,48 +849,62 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
   if (loading) {
     const darkMode = theme === 'dark';
     return (
-      <div style={{ minHeight: '100vh', background: darkMode ? '#0b141a' : 'linear-gradient(to bottom right, #eef2ff, #fff, #faf5ff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', background: darkMode ? '#0b141a' : '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: '80px', height: '80px', margin: '0 auto 32px', position: 'relative' }}>
-            <div style={{ animation: 'spin 1s linear infinite', borderRadius: '50%', height: '80px', width: '80px', border: '4px solid #e0e7ff' }}></div>
-            <div style={{ animation: 'spin 1s linear infinite', borderRadius: '50%', height: '80px', width: '80px', border: '4px solid #4f46e5', borderTopColor: 'transparent', position: 'absolute', top: 0, left: 0 }}></div>
+            <div style={{ animation: 'spin 1s linear infinite', borderRadius: '50%', height: '80px', width: '80px', border: '4px solid #060810ff' }}></div>
+            <div style={{ animation: 'spin 1s linear infinite', borderRadius: '50%', height: '80px', width: '80px', border: '4px solid #111111', borderTopColor: 'transparent', position: 'absolute', top: 0, left: 0 }}></div>
           </div>
           <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: darkMode ? '#fff' : '#1f2937', marginBottom: '8px' }}>Loading Your Chat</h3>
           <p style={{ color: darkMode ? '#9ca3af' : '#4b5563' }}>Connecting to the conversation...</p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginTop: '16px' }}>
-            <div style={{ width: '8px', height: '8px', background: '#4f46e5', borderRadius: '50%', animation: 'bounce 1.4s infinite' }}></div>
-            <div style={{ width: '8px', height: '8px', background: '#4f46e5', borderRadius: '50%', animation: 'bounce 1.4s infinite', animationDelay: '0.1s' }}></div>
-            <div style={{ width: '8px', height: '8px', background: '#4f46e5', borderRadius: '50%', animation: 'bounce 1.4s infinite', animationDelay: '0.2s' }}></div>
+            <div style={{ width: '8px', height: '8px', background: '#111111', borderRadius: '50%', animation: 'bounce 1.4s infinite' }}></div>
+            <div style={{ width: '8px', height: '8px', background: '#111111', borderRadius: '50%', animation: 'bounce 1.4s infinite', animationDelay: '0.1s' }}></div>
+            <div style={{ width: '8px', height: '8px', background: '#111111', borderRadius: '50%', animation: 'bounce 1.4s infinite', animationDelay: '0.2s' }}></div>
           </div>
         </div>
       </div>
     );
   }
-
   const darkMode = theme === 'dark';
   const colors = {
-    bg: darkMode ? '#0b141a' : '#ece5dd',
-    chatBg: darkMode ? '#0b141a' : '#fff',
-    header: darkMode ? '#1f2c33' : '#075e54',
-    headerText: darkMode ? '#e9edef' : '#fff',
-    bubbleOut: darkMode ? '#005c4b' : '#fff',
-    bubbleOutText: darkMode ? '#e9edef' : '#222',
-    bubbleIn: darkMode ? '#1f2c33' : '#dcf8c6',
-    bubbleInText: darkMode ? '#e9edef' : '#222',
-    timestamp: darkMode ? '#8696a0' : '#999',
-    inputBg: darkMode ? '#1f2c33' : '#f0f0f0',
-    inputBorder: darkMode ? '#2a3942' : '#ddd',
-    inputText: darkMode ? '#e9edef' : '#222',
-    sendBtn: darkMode ? '#00a884' : '#25d366',
+    // Glass UI Colors for both modes
+    bg: darkMode ? 'transparent' : '#dee5d5ff', // Beige background for light mode
+    chatBg: darkMode ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.15)', // More transparent glass
+    header: darkMode ? 'rgba(30, 41, 59, 0.4)' : 'rgba(255, 255, 255, 0.35)', // More transparent header
+    headerText: darkMode ? '#ffffff' : '#1a1a1a',
+    bubbleOut: darkMode ? 'rgba(71, 85, 105, 0.6)' : '#dee5d5ff', // More transparent green
+    bubbleOutText: darkMode ? '#ffffff' : '#111111ff', // Darker green text for contrast
+    bubbleIn: darkMode ? 'rgba(51, 65, 85, 0.6)' : '#dee5d5ff', // More transparent white
+    bubbleInText: darkMode ? '#ffffff' : '#1a1a1a', // Darker text for contrast
+    timestamp: darkMode ? 'rgba(148, 163, 184, 0.7)' : 'rgba(0, 0, 0, 0.5)',
+    inputBg: darkMode ? 'rgba(30, 41, 59, 0.4)' : 'rgba(255, 255, 255, 0.4)', // More transparent input
+    inputBorder: darkMode ? 'rgba(71, 85, 105, 0.3)' : 'rgba(23, 22, 22, 0.6)', // Bright glass border
+    inputText: darkMode ? '#ffffff' : '#1a1a1a',
+    sendBtn: darkMode ? '#64748b' : '#00a85cff', // WhatsApp green button
   };
 
-  const wallpaperIsGradient = resolvedWallpaperUrl && (resolvedWallpaperUrl.startsWith('linear-gradient') || resolvedWallpaperUrl.startsWith('radial-gradient'));
+
+
   const wallpaperActive = wallpaperSettings.sourceType !== 'none' && Boolean(resolvedWallpaperUrl);
 
   return (
-    <div style={{ background: colors.bg, minHeight: '100vh' }}>
-      {/* WhatsApp-style chat container */}
-      <div style={{ maxWidth: '64rem', margin: '0 auto', height: '100vh', display: 'flex', flexDirection: 'column', background: colors.chatBg, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', borderRadius: '8px', overflow: 'hidden' }}>
+    <div style={{ background: colors.bg, minHeight: '100vh', padding: '10px' }}>
+      {/* Glass Chat Container */}
+      <div style={{
+        maxWidth: '64rem',
+        margin: '0 auto',
+        height: 'calc(100vh - 20px)',
+        display: 'flex',
+        flexDirection: 'column',
+        background: colors.chatBg,
+        boxShadow: darkMode ? '0 8px 32px 0 rgba(0, 0, 0, 0.37)' : '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderRadius: '32px',
+        border: darkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(255, 255, 255, 0.5)',
+        overflow: 'hidden'
+      }}>
         {/* Modern Chat Header */}
         <ChatHeader
           otherUser={otherUser}
@@ -921,7 +935,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         <div
           ref={chatContainerRef}
           onScroll={handleScroll}
-          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: colors.bg, position: 'relative' }}
+          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: colors.bg, position: 'relative', willChange: 'transform' }}
         >
           {wallpaperActive && resolvedWallpaperUrl && (
             <div
@@ -950,6 +964,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
               onReply={handleReply}
               onForward={(m) => { setForwardingMessage(m); setShowForwardModal(true); }}
               colors={colors}
+              theme={theme}
             />
             <TypingIndicator typingUser={typingUser} colors={colors} />
           </div>

@@ -105,7 +105,7 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="contacts-modal-title">
-      <div ref={modalRef} className={`${darkMode ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'} rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col`} style={{ animation: 'slideDown 0.2s ease-out' }}>
+      <div ref={modalRef} className={`${darkMode ? 'bg-gray-900/60 text-gray-100 border-white/10' : 'bg-white/60 text-gray-900 border-white/20'} border backdrop-blur-xl rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col`} style={{ animation: 'slideDown 0.2s ease-out' }}>
 
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}">
@@ -136,8 +136,8 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`w-full pl-10 pr-4 py-3 rounded-xl border ${darkMode
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-500'
-                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500'
+                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-500'
+                : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500 focus:border-indigo-500'
                 } focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all`}
             />
             {searchQuery && (
@@ -186,12 +186,12 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
                     key={u.id}
                     onClick={() => onSelect(u.id)}
                     className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${currentChatUserId === u.id
-                        ? darkMode
-                          ? 'bg-indigo-900/40 border border-indigo-700'
-                          : 'bg-indigo-50 border border-indigo-200'
-                        : darkMode
-                          ? 'hover:bg-gray-700/50 border border-transparent'
-                          : 'hover:bg-gray-50 border border-transparent'
+                      ? darkMode
+                        ? 'bg-indigo-900/40 border border-indigo-700'
+                        : 'bg-indigo-50 border border-indigo-200'
+                      : darkMode
+                        ? 'hover:bg-gray-700/50 border border-transparent'
+                        : 'hover:bg-gray-50 border border-transparent'
                       }`}
                   >
                     <img
@@ -240,8 +240,8 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
                 type="text"
                 placeholder="Enter invite code"
                 className={`flex-1 px-3 py-2.5 rounded-lg border ${darkMode
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-500'
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-indigo-500'
+                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-indigo-500'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-indigo-500'
                   } focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all`}
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
@@ -251,8 +251,8 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
                 type="submit"
                 disabled={loading || !inviteCode.trim()}
                 className={`px-5 py-2.5 rounded-lg font-medium transition-all ${darkMode
-                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-gray-700 disabled:text-gray-500'
-                    : 'bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-gray-200 disabled:text-gray-400'
+                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-gray-700 disabled:text-gray-500'
+                  : 'bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-gray-200 disabled:text-gray-400'
                   } disabled:cursor-not-allowed`}
               >
                 {loading ? '...' : 'Invite'}
@@ -272,12 +272,12 @@ export default function UserSelectModal({ show, onClose, availableUsers, current
                   type="button"
                   onClick={handleCopyInviteCode}
                   className={`px-3 py-1 text-xs font-medium rounded transition-all ${copiedCode
-                      ? darkMode
-                        ? 'bg-green-900/40 text-green-400'
-                        : 'bg-green-100 text-green-700'
-                      : darkMode
-                        ? 'bg-gray-600 hover:bg-gray-500 text-gray-200'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                    ? darkMode
+                      ? 'bg-green-900/40 text-green-400'
+                      : 'bg-green-100 text-green-700'
+                    : darkMode
+                      ? 'bg-gray-600 hover:bg-gray-500 text-gray-200'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                     }`}
                 >
                   {copiedCode ? '✓ Copied' : 'Copy'}

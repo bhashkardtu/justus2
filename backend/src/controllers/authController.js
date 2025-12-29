@@ -7,7 +7,7 @@ import User from '../models/User.js';
 import Message from '../models/Message.js';
 import Conversation from '../models/Conversation.js';
 import { generateToken } from '../utils/jwtUtil.js';
-import { sendVerificationEmail } from '../services/emailService.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../services/emailService.js';
 import RefreshToken from '../models/RefreshToken.js';
 
 // Create GridFS storage for avatars
@@ -587,6 +587,76 @@ export const updateProfile = async (req, res) => {
   } catch (error) {
     console.error('Update profile error:', error);
     res.status(500).json({ message: 'Failed to update profile' });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    if (!user) {
+      // For security reasons, don't reveal if user exists or not
+      return res.json({ message: 'If an account exists with this email, you will receive a verification code shortly.' });
+    }
+
+    // Generate 6-digit code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.resetPasswordToken = resetCode; // Store directly like verificationCode
+    user.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hour
+    await user.save();
+
+    // Send email
+    const emailSent = await sendPasswordResetEmail(user.email, user.displayName, resetCode);
+
+    if (!emailSent) {
+      return res.status(500).json({ message: 'Failed to send reset email' });
+    }
+
+    res.json({ message: 'If an account exists with this email, you will receive a verification code shortly.' });
+  } catch (error) {
+    console.error('Forgot password error:', error.message);
+    res.status(500).json({ message: 'An error occurred. Please try again later.' });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    // Find user with matching email and code, and check expiration
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+      resetPasswordToken: code,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired verification code' });
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = passwordHash;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    // Revoke all refresh tokens for this user for security
+    await RefreshToken.deleteMany({ user: user._id });
+
+    res.json({ message: 'Password has been reset successfully. You can now log in with your new password.' });
+  } catch (error) {
+    console.error('Reset password error:', error.message);
+    res.status(500).json({ message: 'Failed to reset password' });
   }
 };
 

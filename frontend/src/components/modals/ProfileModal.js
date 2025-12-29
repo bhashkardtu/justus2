@@ -55,10 +55,10 @@ export default function ProfileModal({ show, onClose, user, onAvatarUpdate, onPr
 
   // Theme-based styles
   const styles = {
-    modalBg: isDark ? 'bg-[#1f2c33] border-gray-700' : 'bg-white border-gray-200',
+    modalBg: isDark ? 'bg-gray-900/60 border-white/10 backdrop-blur-xl' : 'bg-white/60 border-white/20 backdrop-blur-xl',
     textPrimary: isDark ? 'text-gray-100' : 'text-gray-900',
     textSecondary: isDark ? 'text-gray-400' : 'text-gray-500',
-    inputBg: isDark ? 'bg-[#2a3942]' : 'bg-white',
+    inputBg: isDark ? 'bg-gray-800/50' : 'bg-white/50',
     inputText: isDark ? 'text-gray-100' : 'text-gray-900',
     inputBorder: isDark ? 'border-gray-600' : 'border-gray-300',
     disabledInputBg: isDark ? 'bg-[#111b21]' : 'bg-gray-50',

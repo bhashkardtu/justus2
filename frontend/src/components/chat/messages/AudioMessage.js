@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { loadAuthenticatedMedia } from '../../../utils/mediaLoader';
 
-export default function AudioMessage({ message, mine }) {
+export default function AudioMessage({ message, mine, colors }) {
   const [audioUrl, setAudioUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -11,6 +11,8 @@ export default function AudioMessage({ message, mine }) {
   const [speakingTranslated, setSpeakingTranslated] = useState(false);
   const audioRef = useRef(null);
   const ttsAudioRef = useRef(null); // Add ref for TTS audio
+
+  // ... (previous useEffect hooks remain unchanged) ...
 
   useEffect(() => {
     const loadAudio = async () => {
@@ -206,20 +208,32 @@ export default function AudioMessage({ message, mine }) {
     );
   }
 
+  // Styles derived from colors prop or defaults
+  const containerStyle = {
+    background: mine ? colors?.bubbleOut || 'rgba(79, 70, 229, 0.6)' : colors?.bubbleIn || 'rgba(255, 255, 255, 0.6)',
+    color: mine ? colors?.bubbleOutText || '#fff' : colors?.bubbleInText || '#1f2937'
+  };
+
+  const playBtnStyle = {
+    background: mine ? colors?.bubbleOutText || '#fff' : colors?.sendBtn || '#4f46e5',
+    color: mine ? colors?.bubbleOut || '#4f46e5' : '#fff' // Invert colors for button
+  };
+
   return (
     <div className="flex items-center space-x-3 py-2">
       <div className="flex-1 min-w-0">
-        <div className={`p-4 rounded-xl ${mine ? 'bg-indigo-100/80' : 'bg-gray-100/80'} border border-gray-200/50 backdrop-blur-sm`}>
+        <div className="p-4 rounded-xl border border-white/10 backdrop-blur-sm" style={containerStyle}>
           {loading ? (
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-sm text-gray-600 font-medium">Loading voice message...</span>
+              <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-sm font-medium opacity-80">Loading voice message...</span>
             </div>
           ) : (
             <div className="flex items-center space-x-4">
               <button
                 onClick={togglePlayPause}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-md hover:shadow-lg ${mine ? 'bg-indigo-500 hover:bg-indigo-600 text-white' : 'bg-white hover:bg-gray-50 text-indigo-500 border border-gray-200'}`}
+                style={playBtnStyle}
+                className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-md hover:shadow-lg"
               >
                 {isPlaying ? (
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -234,19 +248,21 @@ export default function AudioMessage({ message, mine }) {
 
               <div className="flex-1">
                 <div className="flex items-center space-x-3">
-                  <div className="flex-1 h-2 bg-gray-300 rounded-full cursor-pointer relative overflow-hidden" onClick={handleProgressClick}>
-                    <div className={`h-full rounded-full transition-all duration-150 ${mine ? 'bg-indigo-500' : 'bg-indigo-400'}`} style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }} />
-                    {isPlaying && (
-                      <div className={`absolute inset-0 rounded-full ${mine ? 'bg-indigo-300' : 'bg-indigo-200'} animate-pulse opacity-30`} />
-                    )}
+                  <div className="flex-1 h-2 bg-black/10 rounded-full cursor-pointer relative overflow-hidden" onClick={handleProgressClick}>
+                    <div
+                      className="h-full rounded-full transition-all duration-150"
+                      style={{
+                        width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%',
+                        background: mine ? colors?.bubbleOutText || '#fff' : colors?.sendBtn || '#4f46e5'
+                      }}
+                    />
                   </div>
-                  <div className={`text-xs font-medium tabular-nums ${mine ? 'text-indigo-700' : 'text-gray-600'}`}>
+                  <div className="text-xs font-medium tabular-nums opacity-80">
                     {formatTime(currentTime)} / {formatTime(duration)}
                   </div>
                 </div>
-                <div className={`mt-2 text-xs font-medium ${mine ? 'text-indigo-600' : 'text-gray-500'}`}>
-                  🎵 Voice Message
-                  {isPlaying && <span className="ml-2 animate-pulse">● Playing</span>}
+                <div className="mt-1">
+                  {isPlaying && <span className="text-xs font-medium opacity-70 animate-pulse">● Playing</span>}
                 </div>
               </div>
             </div>
@@ -258,26 +274,24 @@ export default function AudioMessage({ message, mine }) {
 
           {/* Display translated transcript if available */}
           {message.metadata?.translatedTranscript && (
-            <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${mine ? 'bg-emerald-50 text-emerald-800' : 'bg-emerald-100 text-emerald-800'
-              }`} style={{ borderLeft: '3px solid #10b981' }}>
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <div className="font-semibold text-xs uppercase tracking-wide opacity-80">Translation</div>
+            <div className="mt-3 px-3 py-2 rounded-lg text-sm" style={{ borderLeft: '3px solid currentColor' }}>
+              <div className="flex items-center justify-end gap-2 mb-1">
                 <button
                   type="button"
                   onClick={handleSpeakTranslation}
-                  className="text-xs font-semibold px-3 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex-shrink-0"
+                  style={{ background: colors?.sendBtn || '#10b981', color: '#fff' }}
+                  className="text-xs font-semibold px-3 py-1 rounded-md transition-opacity hover:opacity-90 flex-shrink-0"
                 >
                   {speakingTranslated ? 'Stop' : 'Play'} translation
                 </button>
               </div>
-              <div className="italic">"{message.metadata.translatedTranscript}"</div>
+              <div className="italic opacity-90">"{message.metadata.translatedTranscript}"</div>
             </div>
           )}
 
           {/* Display transcript if available */}
           {message.metadata?.transcript && (
-            <div className={`mt-3 px-3 py-2 rounded-lg text-sm italic ${mine ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-700'
-              }`} style={{ borderLeft: mine ? '3px solid #6366f1' : '3px solid #9ca3af' }}>
+            <div className="mt-3 px-3 py-2 rounded-lg text-sm italic opacity-80" style={{ borderLeft: '3px solid currentColor' }}>
               💬 "{message.metadata.transcript}"
             </div>
           )}
@@ -286,7 +300,7 @@ export default function AudioMessage({ message, mine }) {
 
       {message.temporary && (
         <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin opacity-60"></div>
+          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-60"></div>
           <span className="text-xs opacity-60 font-medium">Sending...</span>
         </div>
       )}

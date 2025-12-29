@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, refreshToken, logout, getUsers, getUserById, verifyEmail, resendVerification, connectUser, uploadAvatar, getAvatar, avatarUploadMiddleware, updateProfile } from '../controllers/authController.js';
+import { register, login, refreshToken, logout, getUsers, getUserById, verifyEmail, resendVerification, connectUser, uploadAvatar, getAvatar, avatarUploadMiddleware, updateProfile, forgotPassword, resetPassword } from '../controllers/authController.js';
 import { authenticateJWT } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rateLimiter.js';
 
@@ -10,6 +10,8 @@ router.post('/login', authLimiter, login);
 router.post('/refresh-token', refreshToken);
 router.post('/verify-email', authLimiter, verifyEmail);
 router.post('/resend-verification', authLimiter, resendVerification);
+router.post('/forgot-password', authLimiter, forgotPassword);
+router.post('/reset-password', authLimiter, resetPassword);
 router.post('/logout', logout);
 router.get('/users', authenticateJWT, getUsers);
 router.get('/user/:userId', authenticateJWT, getUserById);

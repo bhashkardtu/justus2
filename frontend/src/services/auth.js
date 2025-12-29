@@ -10,7 +10,7 @@ export const login = async (creds) => {
     if (error.response) {
       // Server responded with error status
       const message = error.response.data?.message || error.response.data || 'Login failed';
-      throw { 
+      throw {
         ...error,
         message: typeof message === 'string' ? message : 'Login failed',
         requiresVerification: error.response.data?.requiresVerification,
@@ -36,7 +36,7 @@ export const register = async (creds) => {
     if (error.response) {
       // Server responded with error status
       const message = error.response.data?.message || error.response.data || 'Registration failed';
-      throw { 
+      throw {
         ...error,
         message: typeof message === 'string' ? message : 'Registration failed'
       };
@@ -81,7 +81,7 @@ export const resendVerification = async (email) => {
 // Utility function to validate credentials
 export const validateCredentials = (username, password) => {
   const errors = {};
-  
+
   if (!username || username.trim().length === 0) {
     errors.username = 'Username is required';
   } else if (username.trim().length < 3) {
@@ -91,15 +91,21 @@ export const validateCredentials = (username, password) => {
   } else if (!/^[a-zA-Z0-9_]+$/.test(username.trim())) {
     errors.username = 'Username can only contain letters, numbers, and underscores';
   }
-  
+
   if (!password || password.length === 0) {
     errors.password = 'Password is required';
-  } else if (password.length < 6) {
-    errors.password = 'Password must be at least 6 characters';
+  } else if (password.length < 8) {
+    errors.password = 'Password must be at least 8 characters';
   } else if (password.length > 50) {
     errors.password = 'Password must be less than 50 characters';
+  } else if (!/(?=.*[A-Z])/.test(password)) {
+    errors.password = 'Password must contain at least one uppercase letter';
+  } else if (!/(?=.*\d)/.test(password)) {
+    errors.password = 'Password must contain at least one digit';
+  } else if (!/(?=.*[!@#$%^&*])/.test(password)) {
+    errors.password = 'Password must contain at least one special character (!@#$%^&*)';
   }
-  
+
   return {
     isValid: Object.keys(errors).length === 0,
     errors
@@ -114,12 +120,12 @@ export const logout = async () => {
     console.error('Logout API call failed:', error);
     // Continue with local cleanup even if API call fails
   }
-  
+
   // Clear local storage
   localStorage.removeItem('token');
   localStorage.removeItem('user');
   localStorage.removeItem('otherUserId');
-  
+
   // Optionally reload the page to ensure clean state
   window.location.reload();
 };
@@ -129,7 +135,34 @@ export const updateProfile = async (data) => {
     const response = await api.put('/api/auth/profile', data);
     return response.data;
   } catch (error) {
-    console.error('Update profile error:', error);
     throw error;
+  }
+};
+
+export const forgotPassword = async (email) => {
+  try {
+    const response = await api.post('/api/auth/forgot-password', { email });
+    return response.data;
+  } catch (error) {
+    console.error('Forgot password error:', error.response || error);
+    if (error.response) {
+      const message = error.response.data?.message || 'Failed to request password reset';
+      throw { ...error, message };
+    }
+    throw new Error('Network error');
+  }
+};
+
+export const resetPassword = async (data) => {
+  try {
+    const response = await api.post('/api/auth/reset-password', data);
+    return response.data;
+  } catch (error) {
+    console.error('Reset password error:', error.response || error);
+    if (error.response) {
+      const message = error.response.data?.message || 'Failed to reset password';
+      throw { ...error, message };
+    }
+    throw new Error('Network error');
   }
 };

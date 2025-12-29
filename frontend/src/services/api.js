@@ -45,7 +45,7 @@ const responseInterceptor = (apiInstance) => async (error) => {
 
         try {
             // Call refresh endpoint using raw axios to avoid interceptors
-            console.log('Refeshing token...');
+            console.log('Refreshing token...');
             const { data } = await axios.post(`${API_URL}/api/auth/refresh-token`, {}, {
                 withCredentials: true
             });
