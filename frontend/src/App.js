@@ -82,6 +82,15 @@ export default function App() {
       }
     }, 100);
 
+    // Apply theme class to body for global styles (scrollbars etc)
+    if (theme === 'dark') {
+      document.body.classList.add('dark');
+      document.body.classList.remove('light');
+    } else {
+      document.body.classList.add('light');
+      document.body.classList.remove('dark');
+    }
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(interval);
@@ -159,6 +168,7 @@ export default function App() {
         onUserUpdate={handleUserUpdate}
         showContactSwitcher={showContactSwitcher}
         setShowContactSwitcher={setShowContactSwitcher}
+        theme={theme}
       />;
     }
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { loadAuthenticatedDocument } from '../../../utils/mediaLoader';
 
-export default function DocumentMessage({ message, mine }) {
+export default function DocumentMessage({ message, mine, onOpenLightbox }) {
   const filename = message.metadata?.filename || 'document.pdf';
   const fileUrl = message.content;
 
@@ -16,7 +16,21 @@ export default function DocumentMessage({ message, mine }) {
 
   const handleView = async () => {
     try {
-      await loadAuthenticatedDocument(fileUrl, 'application/pdf', true);
+      // Use lightbox if available
+      if (onOpenLightbox) {
+        // Load the authenticated media first
+        const urlParts = fileUrl.split('/');
+        const mediaId = urlParts[urlParts.length - 1].split('?')[0];
+
+        // Import loadAuthenticatedMedia
+        const { loadAuthenticatedMedia } = await import('../../../utils/mediaLoader');
+        const authenticatedBlobUrl = await loadAuthenticatedMedia(fileUrl, mediaId);
+
+        // Open the authenticated blob URL in lightbox
+        onOpenLightbox(authenticatedBlobUrl, 'document', filename);
+      } else {
+        await loadAuthenticatedDocument(fileUrl, 'application/pdf', true);
+      }
     } catch (error) {
       console.error('View failed:', error);
       alert('Failed to open file');

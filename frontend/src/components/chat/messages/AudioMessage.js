@@ -1,51 +1,63 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { loadAuthenticatedMedia } from '../../../utils/mediaLoader';
 
-export default function AudioMessage({ message, mine, colors }) {
+export default function AudioMessage({ message, mine, colors, theme }) {
+  // ... existing state hooks
+
+  // Styles derived from colors prop or defaults
+  const containerStyle = {
+    // Force a semi-transparent black background to darken the parent bubble color
+    background: theme === 'dark' ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.06)',
+    color: mine ? colors?.bubbleOutText || '#fff' : colors?.bubbleInText || '#1f2937'
+  };
   const [audioUrl, setAudioUrl] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [speakingTranslated, setSpeakingTranslated] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
   const audioRef = useRef(null);
-  const ttsAudioRef = useRef(null); // Add ref for TTS audio
+  const ttsAudioRef = useRef(null);
 
-  // ... (previous useEffect hooks remain unchanged) ...
+  // Only load audio when user clicks play button
+  const handleDownload = async () => {
+    if (downloaded || loading) return;
 
+    setDownloaded(true);
+
+    // If temporary (local blob), use directly
+    if (!message.content || message.temporary) {
+      setAudioUrl(message.content);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(false);
+      const urlParts = message.content.split('/');
+      const mediaId = urlParts[urlParts.length - 1].split('?')[0];
+      console.log('AudioMessage: Loading audio with mediaId:', mediaId);
+
+      const authenticatedBlobUrl = await loadAuthenticatedMedia(message.content, mediaId);
+      setAudioUrl(authenticatedBlobUrl);
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to load authenticated audio:', error);
+      setError(true);
+      setLoading(false);
+    }
+  };
+
+  // Auto-load temporary messages (uploads in progress)
   useEffect(() => {
-    const loadAudio = async () => {
-      if (!message.content) {
-        setError(true);
-        setLoading(false);
-        return;
-      }
-
-      if (message.temporary) {
-        // For temporary messages, use content URL directly (blob URL from socket)
-        setAudioUrl(message.content);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError(false);
-        const urlParts = message.content.split('/');
-        const mediaId = urlParts[urlParts.length - 1].split('?')[0];
-        console.log('AudioMessage: Loading audio with mediaId:', mediaId);
-
-        const authenticatedBlobUrl = await loadAuthenticatedMedia(message.content, mediaId);
-        setAudioUrl(authenticatedBlobUrl);
-        setLoading(false);
-      } catch (error) {
-        console.error('Failed to load authenticated audio:', error);
-        setError(true);
-        setLoading(false);
-      }
-    };
-    loadAudio();
+    if (message.temporary) {
+      setDownloaded(true);
+      setAudioUrl(message.content);
+    }
   }, [message.content, message.temporary]);
 
   useEffect(() => {
@@ -194,7 +206,9 @@ export default function AudioMessage({ message, mine, colors }) {
               onClick={() => {
                 const token = localStorage.getItem('token');
                 if (token) {
-                  const url = new URL(message.content);
+                  const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+                  // Handle cases where message.content is full URL or relative
+                  const url = new URL(message.content, baseUrl);
                   url.searchParams.set('token', token);
                   window.open(url.toString(), '_blank');
                 }
@@ -209,10 +223,7 @@ export default function AudioMessage({ message, mine, colors }) {
   }
 
   // Styles derived from colors prop or defaults
-  const containerStyle = {
-    background: mine ? colors?.bubbleOut || 'rgba(79, 70, 229, 0.6)' : colors?.bubbleIn || 'rgba(255, 255, 255, 0.6)',
-    color: mine ? colors?.bubbleOutText || '#fff' : colors?.bubbleInText || '#1f2937'
-  };
+
 
   const playBtnStyle = {
     background: mine ? colors?.bubbleOutText || '#fff' : colors?.sendBtn || '#4f46e5',
@@ -223,7 +234,31 @@ export default function AudioMessage({ message, mine, colors }) {
     <div className="flex items-center space-x-3 py-2">
       <div className="flex-1 min-w-0">
         <div className="p-4 rounded-xl border border-white/10 backdrop-blur-sm" style={containerStyle}>
-          {loading ? (
+          {!downloaded ? (
+            // Placeholder with play button
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={handleDownload}
+                style={playBtnStyle}
+                className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-md hover:shadow-lg"
+              >
+                <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              <div className="flex-1">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-1 h-2 bg-black/10 rounded-full relative overflow-hidden">
+                    <div className="h-full w-0 rounded-full" style={{ background: mine ? colors?.bubbleOutText || '#fff' : colors?.sendBtn || '#4f46e5' }} />
+                  </div>
+                  <div className="text-xs font-medium tabular-nums opacity-80">
+                    Voice Message
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : loading ? (
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
               <span className="text-sm font-medium opacity-80">Loading voice message...</span>
@@ -272,27 +307,53 @@ export default function AudioMessage({ message, mine, colors }) {
             <audio ref={audioRef} src={audioUrl} preload="metadata" style={{ display: 'none' }} />
           )}
 
-          {/* Display translated transcript if available */}
-          {message.metadata?.translatedTranscript && (
-            <div className="mt-3 px-3 py-2 rounded-lg text-sm" style={{ borderLeft: '3px solid currentColor' }}>
-              <div className="flex items-center justify-end gap-2 mb-1">
-                <button
-                  type="button"
-                  onClick={handleSpeakTranslation}
-                  style={{ background: colors?.sendBtn || '#10b981', color: '#fff' }}
-                  className="text-xs font-semibold px-3 py-1 rounded-md transition-opacity hover:opacity-90 flex-shrink-0"
-                >
-                  {speakingTranslated ? 'Stop' : 'Play'} translation
-                </button>
-              </div>
-              <div className="italic opacity-90">"{message.metadata.translatedTranscript}"</div>
+          {/* Toggle Transcript Button */}
+          {(message.metadata?.translatedTranscript || message.metadata?.transcript) && (
+            <div className="mt-2 flex justify-end">
+              <button
+                onClick={() => setShowTranscript(!showTranscript)}
+                style={{
+                  fontSize: '11px',
+                  opacity: 0.7,
+                  background: 'rgba(0,0,0,0.1)',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  color: 'inherit',
+                  cursor: 'pointer'
+                }}
+              >
+                {showTranscript ? 'Hide Text' : 'Show Text'}
+              </button>
             </div>
           )}
 
-          {/* Display transcript if available */}
-          {message.metadata?.transcript && (
-            <div className="mt-3 px-3 py-2 rounded-lg text-sm italic opacity-80" style={{ borderLeft: '3px solid currentColor' }}>
-              💬 "{message.metadata.transcript}"
+          {/* Transcripts container - hidden by default */}
+          {showTranscript && (
+            <div className="animate-fadeIn">
+              {/* Display translated transcript if available */}
+              {message.metadata?.translatedTranscript && (
+                <div className="mt-2 px-3 py-2 rounded-lg text-sm" style={{ borderLeft: '3px solid currentColor', background: 'rgba(0,0,0,0.05)' }}>
+                  <div className="flex items-center justify-end gap-2 mb-1">
+                    <button
+                      type="button"
+                      onClick={handleSpeakTranslation}
+                      style={{ background: colors?.sendBtn || '#10b981', color: '#fff' }}
+                      className="text-xs font-semibold px-3 py-1 rounded-md transition-opacity hover:opacity-90 flex-shrink-0"
+                    >
+                      {speakingTranslated ? 'Stop' : 'Play'} translation
+                    </button>
+                  </div>
+                  <div className="italic opacity-90">"{message.metadata.translatedTranscript}"</div>
+                </div>
+              )}
+
+              {/* Display transcript if available */}
+              {message.metadata?.transcript && (
+                <div className="mt-2 px-3 py-2 rounded-lg text-sm italic opacity-80" style={{ borderLeft: '3px solid currentColor', background: 'rgba(0,0,0,0.05)' }}>
+                  💬 "{message.metadata.transcript}"
+                </div>
+              )}
             </div>
           )}
         </div>

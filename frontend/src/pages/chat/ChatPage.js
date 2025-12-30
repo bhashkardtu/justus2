@@ -3,6 +3,7 @@ import { sendSocketMessage, getConnectionStatus, getSocket, exchangePublicKey, g
 import { setAuthToken, getAuthenticatedApi } from '../../services/api';
 import ChatHeader from '../../components/chat/layout/ChatHeader';
 import ChatMessages from '../../components/chat/layout/ChatMessages';
+import Lightbox from '../../components/chat/layout/Lightbox';
 import TypingIndicator from '../../components/chat/layout/TypingIndicator';
 import ScrollToBottomButton from '../../components/chat/layout/ScrollToBottomButton';
 import ComposeBar from '../../components/chat/input/ComposeBar';
@@ -75,7 +76,7 @@ const WALLPAPER_PRESETS = [
   }
 ];
 
-export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwitcher, setShowContactSwitcher }) {
+export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwitcher, setShowContactSwitcher, theme = 'light' }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [conversationId, setConversationId] = useState(null);
@@ -91,29 +92,24 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
   const [forwardingMessage, setForwardingMessage] = useState(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [otherUserOnline, setOtherUserOnline] = useState(false);
-  // Theme (light / dark) - sync from localStorage
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  // Theme is now passed as prop
   const [loading, setLoading] = useState(true);
   const [wallpaperSettings, setWallpaperSettings] = useState(DEFAULT_WALLPAPER);
   const [wallpaperPreview, setWallpaperPreview] = useState(DEFAULT_WALLPAPER);
   const [wallpaperPanelOpen, setWallpaperPanelOpen] = useState(false);
   const [savingWallpaper, setSavingWallpaper] = useState(false);
   const [resolvedWallpaperUrl, setResolvedWallpaperUrl] = useState('');
+  const [lightbox, setLightbox] = useState({ visible: false, url: null, type: null, filename: null });
+
+  const handleOpenLightbox = (url, type, filename) => {
+    setLightbox({ visible: true, url, type, filename });
+  };
 
   // E2EE encryption hook
   const encryption = useEncryption();
 
-  // Listen for theme changes from localStorage (from App.js toggle)
-  useEffect(() => {
-    const handleThemeChange = () => {
-      setTheme(localStorage.getItem('theme') || 'light');
-    };
+  // Polling for theme removed in favor of prop
 
-    // Check for theme changes periodically
-    const interval = setInterval(handleThemeChange, 100);
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Listen for top-header 'Add contact' event and open the Add Contact modal
   useEffect(() => {
@@ -767,10 +763,6 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
   };
 
   const onDelete = async (m) => {
-    if (!window.confirm('Are you sure you want to delete this message?')) {
-      return;
-    }
-
     console.log('Deleting message:', m.id);
 
     // Try WebSocket first
@@ -902,7 +894,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         borderRadius: '32px',
-        border: darkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(255, 255, 255, 0.5)',
+        border: darkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '2px solid rgba(255, 255, 255, 0.8)',
         overflow: 'hidden'
       }}>
         {/* Modern Chat Header */}
@@ -929,6 +921,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
           onProfileUpdate={onUserUpdate}
           onOpenWallpaper={openWallpaperPanel}
           wallpaperActive={wallpaperActive}
+          onOpenLightbox={handleOpenLightbox}
         />
 
         {/* Modern Messages Area */}
@@ -962,6 +955,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
               onEdit={onEdit}
               onDelete={onDelete}
               onReply={handleReply}
+              onOpenLightbox={handleOpenLightbox}
               onForward={(m) => { setForwardingMessage(m); setShowForwardModal(true); }}
               colors={colors}
               theme={theme}
@@ -1138,6 +1132,11 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         localStreamRef={videoLocalStreamRef}
         remoteStreamRef={videoRemoteStreamRef}
         colors={colors}
+      />
+
+      <Lightbox
+        lightbox={lightbox}
+        onClose={() => setLightbox({ visible: false, url: null, type: null, filename: null })}
       />
     </div>
   );

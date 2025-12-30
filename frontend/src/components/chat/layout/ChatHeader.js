@@ -23,7 +23,8 @@ export default function ChatHeader({
   onAvatarUpdate,
   onProfileUpdate,
   onOpenWallpaper,
-  wallpaperActive
+  wallpaperActive,
+  onOpenLightbox
 }) {
   const [showProfileModal, setShowProfileModal] = React.useState(false);
   const [showMoreMenu, setShowMoreMenu] = React.useState(false);
@@ -104,7 +105,17 @@ export default function ChatHeader({
               width: '40px',
               height: '40px',
               objectFit: 'cover',
-              backgroundColor: '#6366f1'
+              backgroundColor: '#6366f1',
+              cursor: 'pointer'
+            }}
+            onClick={() => {
+              if (onOpenLightbox) {
+                const avatar = getAvatarUrl(displayUser?.avatarUrl);
+                const name = displayUser?.displayName || displayUser?.username || 'User';
+                // If we have a custom avatar, use it. Otherwise generate a high-res default one
+                const url = avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=500&background=6366f1&color=ffffff&bold=true`;
+                onOpenLightbox(url, 'image', 'avatar.jpg');
+              }
             }}
           />
           {otherUserOnline && (

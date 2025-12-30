@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { loadAuthenticatedMedia } from '../../../utils/mediaLoader';
 import BotMessage from './BotMessage';
 
-export default function MessageItem({ me, m, onEdit, onDelete }) {
+export default function MessageItem({ me, m, onEdit, onDelete, onContextMenu }) {
   // Check if this is a bot message
   if (m.isBot || m.senderId === 'bot') {
     return <BotMessage message={m} />;
@@ -158,7 +158,17 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
               {/* Dropdown trigger - Available for both sender and receiver */}
               {!m.deleted && (
                 <div className="relative">
-                  <button ref={triggerRef} onClick={() => setMenuOpen(s => !s)} className="signal-icon-button">
+                  <button
+                    ref={triggerRef}
+                    onClick={(e) => {
+                      // Prefer prop handler (from ChatPage -> ChatMessages) to position menu relative to bubble
+                      if (typeof onContextMenu === 'function') {
+                        onContextMenu(e.currentTarget, m);
+                      }
+                      setMenuOpen(s => !s);
+                    }}
+                    className="signal-icon-button"
+                  >
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M6 10a2 2 0 114 0 2 2 0 01-4 0zm4 0a2 2 0 114 0 2 2 0 01-4 0zM2 10a2 2 0 114 0 2 2 0 01-4 0z" />
                     </svg>
@@ -261,7 +271,8 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                               onClick={() => {
                                 const token = localStorage.getItem('token');
                                 if (token) {
-                                  const url = new URL(m.content);
+                                  const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+                                  const url = new URL(m.content, baseUrl);
                                   url.searchParams.set('token', token);
                                   window.open(url.toString(), '_blank');
                                 }
@@ -321,7 +332,8 @@ export default function MessageItem({ me, m, onEdit, onDelete }) {
                             onClick={() => {
                               const token = localStorage.getItem('token');
                               if (token) {
-                                const url = new URL(m.content);
+                                const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+                                const url = new URL(m.content, baseUrl);
                                 url.searchParams.set('token', token);
                                 window.open(url.toString(), '_blank');
                               }

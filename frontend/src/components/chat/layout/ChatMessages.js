@@ -1,57 +1,121 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import AudioMessage from '../messages/AudioMessage';
 import ImageMessage from '../messages/ImageMessage';
 import DocumentMessage from '../messages/DocumentMessage';
 import VideoMessage from '../messages/VideoMessage';
 import CallMessage from '../messages/CallMessage';
 import { fmtTime } from '../../../utils/format';
+import { loadAuthenticatedMedia } from '../../../utils/mediaLoader';
 
-export default function ChatMessages({ messages, user, otherUser, onEdit, onDelete, onReply, onForward, colors, theme }) {
-  const [showOriginalMap, setShowOriginalMap] = useState({});
-  const [contextMenu, setContextMenu] = useState(null);
-  const longPressTimer = React.useRef(null);
+// MenuItem component for context menu
+const MenuItem = ({ icon, label, onClick, theme, danger }) => {
+  const [isHovered, setIsHovered] = useState(false);
 
-  const toggleShowOriginal = (msgId) => {
-    setShowOriginalMap(prev => ({
-      ...prev,
-      [msgId]: !prev[msgId]
-    }));
-  };
+  return (
+    <div
+      style={{
+        padding: '14px 20px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: icon ? '12px' : '0',
+        background: isHovered
+          ? (theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)')
+          : 'transparent',
+        color: danger ? '#ff4444' : 'inherit',
+        transition: 'background 0.15s ease',
+        fontSize: '16px',
+      }}
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {icon && <span style={{ fontSize: '18px' }}>{icon}</span>}
+      <span>{label}</span>
+    </div>
+  );
+};
 
-  const renderReplyTo = (replyTo, allMessages) => {
+const MessageItem = React.memo(({
+  msg,
+  user,
+  otherUser,
+  colors,
+  theme,
+  onContextMenu,
+  onLongPressStart,
+  onLongPressEnd,
+  onReply,
+  onOpenLightbox,
+  showOriginal,
+  toggleShowOriginal
+}) => {
+  const isOwn = msg.senderId === user.id;
+
+  // Special styling for call logs
+  if (msg.type === 'call') {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        margin: '8px 0'
+      }}>
+        <CallMessage message={msg} isOwn={isOwn} />
+        <div style={{ fontSize: '0.7rem', color: colors.timestamp, marginTop: '2px' }}>
+          {fmtTime(msg.timestamp || msg.createdAt)}
+        </div>
+      </div>
+    );
+  }
+
+  const isDarkMode = theme === 'dark';
+  const bubbleStyle = isOwn
+    ? {
+      background: colors.bubbleOut,
+      color: colors.bubbleOutText,
+      borderRadius: '20px 4px 20px 20px',
+      padding: '10px 14px',
+      maxWidth: '75%',
+      boxShadow: isDarkMode ? '0 4px 6px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.08)',
+      position: 'relative',
+      backdropFilter: 'blur(25px)',
+      WebkitBackdropFilter: 'blur(25px)',
+      border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid rgba(255, 255, 255, 0.5)'
+    }
+    : {
+      background: colors.bubbleIn,
+      color: colors.bubbleInText,
+      borderRadius: '4px 20px 20px 20px',
+      padding: '10px 14px',
+      maxWidth: '75%',
+      boxShadow: isDarkMode ? '0 4px 6px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.08)',
+      position: 'relative',
+      backdropFilter: 'blur(25px)',
+      WebkitBackdropFilter: 'blur(25px)',
+      border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.4)' : '1px solid rgba(255, 255, 255, 0.5)'
+    };
+
+  const renderReplyTo = (replyTo) => {
     if (!replyTo) return null;
 
-    // Handle both populated (from backend) and id-only (temporary) replyTo
     let replyMessage = replyTo;
 
-    // If replyTo is just an ID string, find the message in list
-    if (typeof replyTo === 'string') {
-      replyMessage = allMessages.find(m => m.id === replyTo || m._id === replyTo);
-      if (!replyMessage) return null;
-    }
-
-    // If replyTo doesn't have content but has an id, find it
-    if (replyTo.id && !replyTo.content && !replyTo.type) {
-      replyMessage = allMessages.find(m => m.id === replyTo.id || m._id === replyTo.id);
-      if (!replyMessage) return null;
-    }
+    // If replyTo is just an ID string (should be resolved by parent, but handling here for safety)
+    // Note: In optimized version, we expect full object or this might fail. 
+    // Ideally parent resolves it. For now assume it's populated or we skip.
+    if (typeof replyTo === 'string') return null;
 
     const getReplyContent = () => {
       switch (replyMessage.type) {
-        case 'text':
-          return replyMessage.content;
-        case 'image':
-          return '📷 Image';
-        case 'video':
-          return '🎥 Video';
-        case 'audio':
-          return '🎤 Voice message';
-        case 'document':
-          return `📄 ${replyMessage.metadata?.filename || 'Document'}`;
-        case 'call':
-          return '📞 Call';
-        default:
-          return replyMessage.content;
+        case 'text': return replyMessage.content;
+        case 'image': return '📷 Image';
+        case 'video': return '🎥 Video';
+        case 'audio': return '🎤 Voice message';
+        case 'document': return `📄 ${replyMessage.metadata?.filename || 'Document'}`;
+        case 'call': return '📞 Call';
+        default: return replyMessage.content;
       }
     };
 
@@ -67,7 +131,6 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
       }}
         onClick={(e) => {
           e.stopPropagation();
-          // Optional: Scroll to the replied message
         }}
       >
         <div style={{
@@ -90,314 +153,679 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
     );
   };
 
-  const handleContextMenu = (e, msg) => {
-    e.preventDefault();
-    setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      message: msg
-    });
-  };
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: isOwn ? 'flex-end' : 'flex-start',
+        position: 'relative',
+        marginBottom: '2px'
+      }}
+    >
+      <div
+        onContextMenu={(e) => onContextMenu(e, msg)}
+        onTouchStart={(e) => onLongPressStart(e, msg)}
+        onTouchEnd={onLongPressEnd}
+        onTouchMove={onLongPressEnd}
+        style={bubbleStyle}
+      >
+        {msg.replyTo && renderReplyTo(msg.replyTo)}
+        {msg.type === 'text' && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            paddingLeft: isOwn ? '32px' : '0',
+            paddingRight: isOwn ? '0' : '32px'
+          }}>
+            {msg.translatedText && !isOwn ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', marginBottom: '4px', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '2px' }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleShowOriginal(msg.id); }}
+                    style={{ background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', fontSize: '10px', cursor: 'pointer', padding: 0, opacity: 0.8 }}
+                  >
+                    {showOriginal ? 'Show Translation' : 'Show Original'}
+                  </button>
+                </div>
+                <span style={{ whiteSpace: 'pre-line' }}>
+                  {showOriginal ? msg.content : msg.translatedText}
+                </span>
+              </>
+            ) : (
+              <span style={{ whiteSpace: 'pre-line' }}>{msg.content}</span>
+            )}
+          </div>
+        )}
+        {msg.type === 'image' && (
+          <div style={{ paddingLeft: isOwn ? '32px' : '0', paddingRight: isOwn ? '0' : '32px' }}>
+            <ImageMessage message={msg} mine={isOwn} onOpenLightbox={onOpenLightbox} />
+          </div>
+        )}
+        {msg.type === 'video' && (
+          <div style={{ paddingLeft: isOwn ? '32px' : '0', paddingRight: isOwn ? '0' : '32px' }}>
+            <VideoMessage message={msg} mine={isOwn} onOpenLightbox={onOpenLightbox} theme={theme} colors={colors} />
+          </div>
+        )}
+        {msg.type === 'audio' && (
+          <div style={{ paddingLeft: isOwn ? '32px' : '0', paddingRight: isOwn ? '0' : '32px' }}>
+            <AudioMessage message={msg} mine={isOwn} colors={colors} theme={theme} />
+          </div>
+        )}
+        {msg.type === 'document' && (
+          <div style={{ paddingLeft: isOwn ? '32px' : '0', paddingRight: isOwn ? '0' : '32px' }}>
+            <DocumentMessage message={msg} mine={isOwn} onOpenLightbox={onOpenLightbox} />
+          </div>
+        )}
 
-  const handleLongPressStart = (e, msg) => {
+        {/* Three-dot menu button - always visible */}
+        <button
+          style={{
+            position: 'absolute',
+            top: '8px',
+            right: isOwn ? 'auto' : '8px',
+            left: isOwn ? '8px' : 'auto',
+            width: '24px',
+            height: '24px',
+            borderRadius: '50%',
+            background: theme === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: 0.8,
+            transition: 'all 0.2s',
+            zIndex: 2,
+            padding: 0
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = '1';
+            e.currentTarget.style.background = theme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.25)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = '0.8';
+            e.currentTarget.style.background = theme === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)';
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+
+            // COMPREHENSIVE LOGGING
+            console.log('=== THREE-DOT BUTTON CLICKED ===');
+
+            // 1. Button itself (innermost child that was clicked)
+            const button = e.currentTarget;
+            const buttonRect = button.getBoundingClientRect();
+            console.log('1. THREE-DOT BUTTON:', {
+              element: button,
+              rect: buttonRect,
+              coords: {
+                top: buttonRect.top,
+                left: buttonRect.left,
+                right: buttonRect.right,
+                bottom: buttonRect.bottom,
+                width: buttonRect.width,
+                height: buttonRect.height
+              }
+            });
+
+            // 2. SVG child inside button
+            const svg = button.querySelector('svg');
+            if (svg) {
+              const svgRect = svg.getBoundingClientRect();
+              console.log('2. SVG CHILD:', {
+                element: svg,
+                rect: svgRect,
+                coords: { top: svgRect.top, left: svgRect.left, right: svgRect.right, bottom: svgRect.bottom }
+              });
+            }
+
+            // 3. Parent bubble
+            const bubble = button.parentElement;
+            const bubbleRect = bubble.getBoundingClientRect();
+            console.log('3. PARENT BUBBLE:', {
+              element: bubble,
+              rect: bubbleRect,
+              coords: { top: bubbleRect.top, left: bubbleRect.left, right: bubbleRect.right, bottom: bubbleRect.bottom }
+            });
+
+            // 4. All children of bubble
+            const bubbleChildren = Array.from(bubble.children);
+            console.log('4. BUBBLE CHILDREN COUNT:', bubbleChildren.length);
+            bubbleChildren.forEach((child, index) => {
+              const childRect = child.getBoundingClientRect();
+              console.log(`   Child ${index}:`, {
+                element: child,
+                tagName: child.tagName,
+                className: child.className,
+                rect: childRect,
+                coords: { top: childRect.top, left: childRect.left, right: childRect.right, bottom: childRect.bottom }
+              });
+            });
+
+            // 5. Viewport info
+            console.log('5. VIEWPORT:', {
+              width: window.innerWidth,
+              height: window.innerHeight,
+              scrollY: window.scrollY
+            });
+
+            console.log('=== END LOGGING ===\n');
+
+            // Create a synthetic event with the button's position
+            const syntheticEvent = {
+              ...e,
+              currentTarget: e.currentTarget,
+              preventDefault: () => { }
+            };
+            onContextMenu(syntheticEvent, msg);
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ color: theme === 'dark' ? '#fff' : '#333' }}>
+            <circle cx="12" cy="5" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="12" cy="19" r="2" />
+          </svg>
+        </button>
+      </div>
+
+      <div style={{ fontSize: '0.75rem', color: colors.timestamp, marginTop: '2px', textAlign: isOwn ? 'right' : 'left' }}>
+        {fmtTime(msg.timestamp || msg.createdAt)}
+        {isOwn && msg.read && <span style={{ marginLeft: '8px', color: '#22c55e' }}>✓✓</span>}
+        {msg.temporary && <span style={{ marginLeft: '8px', color: '#eab308' }}>sending...</span>}
+      </div>
+    </div>
+  );
+});
+
+export default function ChatMessages({ messages, user, otherUser, onEdit, onDelete, onReply, onForward, colors, theme, onOpenLightbox }) {
+  const [showOriginalMap, setShowOriginalMap] = useState({});
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, message: null });
+  const [deleteConfirmation, setDeleteConfirmation] = useState({ visible: false, message: null });
+  const menuRef = useRef(null);
+  const longPressTimer = useRef(null);
+
+  const toggleShowOriginal = useCallback((msgId) => {
+    setShowOriginalMap(prev => ({
+      ...prev,
+      [msgId]: !prev[msgId]
+    }));
+  }, []);
+
+  // Updated to handle resolving logic here if needed, or passing data down
+  const resolveReplyTo = useCallback((replyTo, allMessages) => {
+    if (!replyTo) return null;
+    if (typeof replyTo === 'string') {
+      return allMessages.find(m => m.id === replyTo || m._id === replyTo);
+    }
+    if (replyTo.id && !replyTo.content && !replyTo.type) {
+      return allMessages.find(m => m.id === replyTo.id || m._id === replyTo.id);
+    }
+    return replyTo;
+  }, []);
+
+  const handleContextMenu = useCallback((e, msg) => {
+    e.preventDefault();
+    const elementRect = e.currentTarget.getBoundingClientRect();
+    const isOwn = msg.senderId === user.id;
+
+    console.log('=== HANDLE CONTEXT MENU ===');
+    console.log('Element Rect:', {
+      top: elementRect.top,
+      left: elementRect.left,
+      right: elementRect.right,
+      bottom: elementRect.bottom,
+      width: elementRect.width,
+      height: elementRect.height
+    });
+    console.log('Is Own Message:', isOwn);
+
+    // Get proper viewport dimensions (window.innerHeight can be wrong in some layouts)
+    const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    const viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+    console.log('Viewport (corrected):', { width: viewportWidth, height: viewportHeight });
+    console.log('window.innerHeight (old):', window.innerHeight);
+
+    // Calculate position - elementRect gives us viewport-relative coordinates
+    // which is perfect for fixed positioning
+    const menuWidth = 220;
+    const menuHeight = 250; // approximate height
+
+    // Position menu next to the element (button or bubble)
+    // For own messages: try left first, then right
+    // For received messages: try right first, then left
+    let x, y;
+
+    if (isOwn) {
+      // Own message: try positioning to the left of the element
+      x = elementRect.left - menuWidth - 10;
+      // If off screen, try right side
+      if (x < 10) {
+        x = elementRect.right + 10;
+      }
+    } else {
+      // Received message: try positioning to the right of the element
+      x = elementRect.right + 10;
+      // If off screen, try left side
+      if (x + menuWidth > viewportWidth) {
+        x = elementRect.left - menuWidth - 10;
+      }
+    }
+
+    // Align menu top with the element
+    y = elementRect.top;
+
+    // Final boundary checks
+    // Ensure menu stays within viewport bounds horizontally
+    if (x < 10) {
+      x = 10;
+    }
+    if (x + menuWidth > viewportWidth - 10) {
+      x = viewportWidth - menuWidth - 10;
+    }
+
+    // Ensure menu doesn't go off bottom of screen
+    if (y + menuHeight > viewportHeight) {
+      y = Math.max(10, viewportHeight - menuHeight - 10);
+    }
+
+    // Ensure menu doesn't go off top of screen
+    if (y < 10) {
+      y = 10;
+    }
+
+    console.log('FINAL MENU POSITION:', { x, y });
+    console.log('=== END HANDLE CONTEXT MENU ===\n');
+
+    setContextMenu({
+      visible: true,
+      x: x,
+      y: y,
+      message: msg,
+      isMobile: false
+    });
+  }, [user.id]);
+
+  const handleLongPressStart = useCallback((e, msg) => {
     longPressTimer.current = setTimeout(() => {
       const touch = e.touches[0];
       setContextMenu({
+        visible: true,
         x: touch.clientX,
         y: touch.clientY,
         message: msg,
         isMobile: true
       });
     }, 500);
-  };
+  }, []);
 
-  const handleLongPressEnd = () => {
+  const handleLongPressEnd = useCallback(() => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
     }
-  };
+  }, []);
 
-  const closeContextMenu = () => {
-    setContextMenu(null);
-  };
+  const closeContextMenu = useCallback(() => {
+    setContextMenu({ visible: false, x: 0, y: 0, message: null });
+  }, []);
 
-  React.useEffect(() => {
-    if (contextMenu) {
-      const handler = () => closeContextMenu();
-      document.addEventListener('click', handler);
-      return () => document.removeEventListener('click', handler);
+  useEffect(() => {
+    if (contextMenu.visible) {
+      const handler = (e) => {
+        if (menuRef.current && !menuRef.current.contains(e.target)) {
+          closeContextMenu();
+        }
+      };
+      document.addEventListener('mousedown', handler);
+      return () => document.removeEventListener('mousedown', handler);
     }
-  }, [contextMenu]);
+  }, [contextMenu.visible, closeContextMenu]);
 
   return (
     <>
       {messages.map((msg, idx) => {
-        const isOwn = msg.senderId === user.id;
-
-        // Special styling for call logs
-        if (msg.type === 'call') {
-          return (
-            <div key={msg.id || idx} style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              margin: '8px 0'
-            }}>
-              <CallMessage message={msg} isOwn={isOwn} />
-              <div style={{ fontSize: '0.7rem', color: colors.timestamp, marginTop: '2px' }}>
-                {fmtTime(msg.timestamp || msg.createdAt)}
-              </div>
-            </div>
-          );
-        }
-
-        const isDarkMode = theme === 'dark';
-        const bubbleStyle = isOwn
-          ? {
-            background: colors.bubbleOut,
-            color: colors.bubbleOutText,
-            borderRadius: '20px 4px 20px 20px',
-            padding: '10px 14px',
-            maxWidth: '75%',
-            boxShadow: isDarkMode ? '0 4px 6px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.08)',
-            position: 'relative',
-            backdropFilter: 'blur(25px)',
-            WebkitBackdropFilter: 'blur(25px)',
-            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid rgba(255, 255, 255, 0.5)'
-          }
-          : {
-            background: colors.bubbleIn,
-            color: colors.bubbleInText,
-            borderRadius: '4px 20px 20px 20px',
-            padding: '10px 14px',
-            maxWidth: '75%',
-            boxShadow: isDarkMode ? '0 4px 6px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.08)',
-            position: 'relative',
-            backdropFilter: 'blur(25px)',
-            WebkitBackdropFilter: 'blur(25px)',
-            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.4)' : '1px solid rgba(255, 255, 255, 0.5)'
-          };
+        // Resolve reply content once here to pass down cleanly
+        const resolvedReply = msg.replyTo ? resolveReplyTo(msg.replyTo, messages) : null;
 
         return (
-          <div
+          <MessageItem
             key={msg.id || idx}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: isOwn ? 'flex-end' : 'flex-start',
-              position: 'relative',
-              marginBottom: '2px'
-            }}
-          >
-            <div
-              onContextMenu={(e) => handleContextMenu(e, msg)}
-              onTouchStart={(e) => handleLongPressStart(e, msg)}
-              onTouchEnd={handleLongPressEnd}
-              onTouchMove={handleLongPressEnd}
-              style={bubbleStyle}
-            >
-              {msg.replyTo && renderReplyTo(msg.replyTo, messages)}
-              {msg.type === 'text' && (
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {msg.translatedText && !isOwn ? (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', marginBottom: '4px', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '2px' }}>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); toggleShowOriginal(msg.id); }}
-                          style={{ background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', fontSize: '10px', cursor: 'pointer', padding: 0, opacity: 0.8 }}
-                        >
-                          {showOriginalMap[msg.id] ? 'Show Translation' : 'Show Original'}
-                        </button>
-                      </div>
-                      <span style={{ whiteSpace: 'pre-line' }}>
-                        {showOriginalMap[msg.id] ? msg.content : msg.translatedText}
-                      </span>
-                    </>
-                  ) : (
-                    <span style={{ whiteSpace: 'pre-line' }}>{msg.content}</span>
-                  )}
-                </div>
-              )}
-              {msg.type === 'image' && <ImageMessage message={msg} mine={isOwn} />}
-              {msg.type === 'video' && <VideoMessage message={msg} mine={isOwn} />}
-              {msg.type === 'audio' && <AudioMessage message={msg} mine={isOwn} colors={colors} />}
-              {msg.type === 'document' && <DocumentMessage message={msg} mine={isOwn} />}
-              {/* Mobile: Arrow-down button to open context menu */}
-              {isOwn && (
-                <span
-                  className="mobile-context-arrow"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    background: 'rgba(0,0,0,0.08)',
-                    position: 'absolute',
-                    left: '-34px',
-                    right: 'auto',
-                    top: 8,
-                    zIndex: 2,
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                    cursor: 'pointer',
-                    border: 'none',
-                    fontSize: 18,
-                    color: colors.timestamp || '#888',
-                    visibility: 'hidden',
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setContextMenu({
-                      x: e.currentTarget.getBoundingClientRect().left,
-                      y: e.currentTarget.getBoundingClientRect().top,
-                      message: msg,
-                      isMobile: true
-                    });
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-                </span>
-              )}
-
-              {!isOwn && (
-                <span
-                  className="mobile-context-arrow"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    background: 'rgba(0,0,0,0.08)',
-                    position: 'absolute',
-                    left: 'auto',
-                    right: '-34px',
-                    top: 8,
-                    zIndex: 2,
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                    cursor: 'pointer',
-                    border: 'none',
-                    fontSize: 18,
-                    color: colors.timestamp || '#888',
-                    visibility: 'hidden',
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setContextMenu({
-                      x: e.currentTarget.getBoundingClientRect().right,
-                      y: e.currentTarget.getBoundingClientRect().top,
-                      message: msg,
-                      isMobile: true
-                    });
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-                </span>
-              )}
-            </div>
-
-            <div style={{ fontSize: '0.75rem', color: colors.timestamp, marginTop: '2px', textAlign: isOwn ? 'right' : 'left' }}>
-              {fmtTime(msg.timestamp || msg.createdAt)}
-              {isOwn && msg.read && <span style={{ marginLeft: '8px', color: '#22c55e' }}>✓✓</span>}
-              {msg.temporary && <span style={{ marginLeft: '8px', color: '#eab308' }}>sending...</span>}
-            </div>
-            {/* Show arrow only on mobile via CSS */}
-            <style>{`
-              @media (max-width: 600px) {
-                .mobile-context-arrow {
-                  visibility: visible !important;
-                }
-              }
-            `}</style>
-          </div>
+            msg={msg === resolvedReply ? { ...msg, replyTo: null } : { ...msg, replyTo: resolvedReply }} // Avoid circular or confusion
+            user={user}
+            otherUser={otherUser}
+            colors={colors}
+            theme={theme}
+            onContextMenu={handleContextMenu}
+            onLongPressStart={handleLongPressStart}
+            onLongPressEnd={handleLongPressEnd}
+            onReply={onReply}
+            onOpenLightbox={onOpenLightbox}
+            showOriginal={showOriginalMap[msg.id]}
+            toggleShowOriginal={toggleShowOriginal}
+          />
         );
       })}
 
-      {/* Context Menu - Modern, positioned left/right of bubble, not blocking */}
-      {contextMenu && (
+      {/* Telegram-style Context Menu with backdrop overlay */}
+      {contextMenu.visible && contextMenu.message && ReactDOM.createPortal(
         <>
+          {/* Backdrop overlay */}
           <div
             style={{
               position: 'fixed',
-              inset: 0,
-              background: contextMenu.isMobile ? 'rgba(0,0,0,0.5)' : 'transparent',
-              zIndex: 999
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.3)',
+              backdropFilter: 'blur(2px)',
+              WebkitBackdropFilter: 'blur(2px)',
+              zIndex: 9998,
+              animation: 'fadeIn 0.2s ease-out',
             }}
             onClick={closeContextMenu}
           />
+
+          {/* Context Menu */}
+          {console.log('RENDERING MENU WITH:', {
+            top: contextMenu.isMobile ? 'auto' : contextMenu.y,
+            left: contextMenu.isMobile ? 0 : contextMenu.x,
+            isMobile: contextMenu.isMobile
+          })}
+          <div
+            ref={menuRef}
+            style={{
+              position: 'fixed',
+              bottom: contextMenu.isMobile ? 0 : 'auto',
+              top: contextMenu.isMobile ? 'auto' : contextMenu.y,
+              left: contextMenu.isMobile ? 0 : contextMenu.x,
+              right: contextMenu.isMobile ? 0 : 'auto',
+              borderRadius: contextMenu.isMobile ? '20px 20px 0 0' : '16px',
+              minWidth: contextMenu.isMobile ? 'auto' : '220px',
+              background: theme === 'dark' ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
+              boxShadow: '0 12px 48px rgba(0, 0, 0, 0.3)',
+              zIndex: 9999,
+              color: theme === 'dark' ? '#fff' : '#000',
+              fontSize: '15px',
+              padding: contextMenu.isMobile ? '20px 0 30px 0' : '8px 0',
+              animation: contextMenu.isMobile ? 'slideUp 0.3s ease-out' : 'fadeInScale 0.2s ease-out',
+              transformOrigin: 'top left',
+            }}
+          >
+            {/* Menu items */}
+            <MenuItem
+              icon=""
+              label="Reply"
+              onClick={() => { onReply(contextMenu.message); closeContextMenu(); }}
+              theme={theme}
+            />
+
+            {contextMenu.message.senderId === user.id && contextMenu.message.type === 'text' && (
+              <MenuItem
+                icon=""
+                label="Edit"
+                onClick={() => { onEdit(contextMenu.message); closeContextMenu(); }}
+                theme={theme}
+              />
+            )}
+
+            <MenuItem
+              icon=""
+              label="Forward"
+              onClick={() => { onForward(contextMenu.message); closeContextMenu(); }}
+              theme={theme}
+            />
+
+            {/* Download option for media messages */}
+            {(contextMenu.message.type === 'image' || contextMenu.message.type === 'video' || contextMenu.message.type === 'audio') && (
+              <MenuItem
+                icon=""
+                label="Download"
+                onClick={async () => {
+                  try {
+                    // Get the media ID from the content URL
+                    const urlParts = contextMenu.message.content.split('/');
+                    const mediaId = urlParts[urlParts.length - 1].split('?')[0];
+
+                    // Load the authenticated media blob
+                    const authenticatedBlobUrl = await loadAuthenticatedMedia(contextMenu.message.content, mediaId);
+
+                    // Fetch the blob from the authenticated URL
+                    const response = await fetch(authenticatedBlobUrl);
+                    const blob = await response.blob();
+
+                    // Determine filename and extension based on blob type or message metadata
+                    let filename = contextMenu.message.metadata?.filename;
+                    if (!filename) {
+                      const timestamp = Date.now();
+                      // Get extension from blob MIME type
+                      let extension = '';
+                      if (blob.type.includes('image/png')) extension = 'png';
+                      else if (blob.type.includes('image/jpeg') || blob.type.includes('image/jpg')) extension = 'jpg';
+                      else if (blob.type.includes('image/gif')) extension = 'gif';
+                      else if (blob.type.includes('image/webp')) extension = 'webp';
+                      else if (blob.type.includes('video/mp4')) extension = 'mp4';
+                      else if (blob.type.includes('video/webm')) extension = 'webm';
+                      else if (blob.type.includes('audio/mpeg')) extension = 'mp3';
+                      else if (blob.type.includes('audio/webm')) extension = 'webm';
+                      else if (blob.type.includes('audio/ogg')) extension = 'ogg';
+                      else {
+                        // Fallback based on message type
+                        if (contextMenu.message.type === 'image') extension = 'jpg';
+                        else if (contextMenu.message.type === 'video') extension = 'mp4';
+                        else if (contextMenu.message.type === 'audio') extension = 'mp3';
+                      }
+
+                      filename = `${contextMenu.message.type}-${timestamp}.${extension}`;
+                    }
+
+                    // Create a temporary URL for the blob
+                    const blobUrl = URL.createObjectURL(blob);
+
+                    // Create and trigger download
+                    const link = document.createElement('a');
+                    link.href = blobUrl;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    // Clean up the temporary URL
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+
+                    closeContextMenu();
+                  } catch (error) {
+                    console.error('Download failed:', error);
+                    alert('Failed to download file. Please try again.');
+                    closeContextMenu();
+                  }
+                }}
+                theme={theme}
+              />
+            )}
+
+            <div style={{
+              height: '1px',
+              background: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+              margin: '8px 0'
+            }} />
+
+            <MenuItem
+              icon=""
+              label={contextMenu.message.senderId === user.id ? 'Delete for everyone' : 'Delete for me'}
+              onClick={() => {
+                setDeleteConfirmation({ visible: true, message: contextMenu.message });
+                closeContextMenu();
+              }}
+              theme={theme}
+              danger
+            />
+          </div>
+
+          {/* CSS Animations */}
+          <style>{`
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            
+            @keyframes slideUp {
+              from { 
+                transform: translateY(100%);
+                opacity: 0;
+              }
+              to { 
+                transform: translateY(0);
+                opacity: 1;
+              }
+            }
+            
+            @keyframes fadeInScale {
+              from { 
+                opacity: 0;
+                transform: scale(0.9);
+              }
+              to { 
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+          `}</style>
+        </>,
+        document.body
+      )}
+
+      {/* Modern Delete Confirmation Dialog */}
+      {deleteConfirmation.visible && deleteConfirmation.message && ReactDOM.createPortal(
+        <>
+          {/* Backdrop */}
           <div
             style={{
               position: 'fixed',
-              top: (contextMenu.y - 75 - (contextMenu.isMobile ? 0 : 120)),
-              left: contextMenu.message.senderId === user.id
-                ? (contextMenu.x - 270) // sender: menu to left
-                : (contextMenu.x + 40), // receiver: menu to right
-              borderRadius: '8px',
-              minWidth: '200px',
-              background: colors.chatBg || '#222',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-              zIndex: 1000,
-              overflow: 'hidden',
-              color: colors.inputText || '#fff',
-              fontSize: '15px',
-              transition: 'top 0.15s, left 0.15s'
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              backdropFilter: 'blur(4px)',
+              WebkitBackdropFilter: 'blur(4px)',
+              zIndex: 10000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              animation: 'fadeIn 0.2s ease-out',
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={() => setDeleteConfirmation({ visible: false, message: null })}
           >
-            {/* Menu items with icons */}
-            <div style={{ padding: '8px 0' }}>
-              <div
-                style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', cursor: 'pointer', borderBottom: `1px solid ${colors.inputBorder || '#333'}` }}
-                onClick={() => { onReply(contextMenu.message); closeContextMenu(); }}
-              >
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
-                Reply
-              </div>
-              {contextMenu.message.senderId === user.id && contextMenu.message.type === 'text' && (
-                <div
-                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', cursor: 'pointer', borderBottom: `1px solid ${colors.inputBorder || '#333'}` }}
-                  onClick={() => { onEdit(contextMenu.message); closeContextMenu(); }}
+            {/* Dialog */}
+            <div
+              style={{
+                background: theme === 'dark' ? 'rgba(30, 30, 30, 0.98)' : 'rgba(255, 255, 255, 0.98)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                borderRadius: '20px',
+                padding: '32px',
+                maxWidth: '400px',
+                width: '90%',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4)',
+                border: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
+                animation: 'fadeInScale 0.3s ease-out',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+
+
+              {/* Title */}
+              <h3 style={{
+                margin: '0 0 12px 0',
+                fontSize: '20px',
+                fontWeight: '600',
+                textAlign: 'center',
+                color: theme === 'dark' ? '#fff' : '#000',
+              }}>
+                Delete Message?
+              </h3>
+
+              {/* Description */}
+              <p style={{
+                margin: '0 0 28px 0',
+                fontSize: '15px',
+                textAlign: 'center',
+                color: theme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
+                lineHeight: '1.5',
+              }}>
+                {deleteConfirmation.message.senderId === user.id
+                  ? 'This message will be deleted for everyone in the chat.'
+                  : 'This message will be deleted for you only.'}
+              </p>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {/* Cancel */}
+                <button
+                  onClick={() => setDeleteConfirmation({ visible: false, message: null })}
+                  style={{
+                    flex: 1,
+                    padding: '14px 24px',
+                    borderRadius: '12px',
+                    border: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)'}`,
+                    background: 'transparent',
+                    color: theme === 'dark' ? '#fff' : '#000',
+                    fontSize: '15px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
                 >
-                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                  Edit
-                </div>
-              )}
-              <div
-                style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', cursor: 'pointer', borderBottom: `1px solid ${colors.inputBorder || '#333'}` }}
-                onClick={() => { onForward(contextMenu.message); closeContextMenu(); }}
-              >
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-                Forward
-              </div>
-              <div
-                style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', cursor: 'pointer', color: '#ef4444' }}
-                onClick={() => { onDelete(contextMenu.message); closeContextMenu(); }}
-              >
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                {contextMenu.message.senderId === user.id ? 'Delete for everyone' : 'Delete for me'}
+                  Cancel
+                </button>
+
+                {/* Delete */}
+                <button
+                  onClick={() => {
+                    onDelete(deleteConfirmation.message);
+                    setDeleteConfirmation({ visible: false, message: null });
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '14px 24px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: '#ff4444',
+                    color: '#fff',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#ff2222';
+                    e.currentTarget.style.transform = 'scale(1.02)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#ff4444';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  Delete
+                </button>
               </div>
             </div>
-            {contextMenu.isMobile && (
-              <div
-                style={{
-                  padding: '12px 16px',
-                  cursor: 'pointer',
-                  borderTop: `1px solid ${colors.inputBorder || '#333'}`,
-                  color: colors.inputText || '#fff',
-                  fontSize: '15px',
-                  fontWeight: 600,
-                  textAlign: 'center'
-                }}
-                onClick={closeContextMenu}
-              >
-                Cancel
-              </div>
-            )}
           </div>
-        </>
+        </>,
+        document.body
       )}
+
+
     </>
   );
 }
