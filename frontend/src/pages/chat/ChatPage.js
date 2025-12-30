@@ -19,6 +19,7 @@ import useVoiceMessage from '../../hooks/useVoiceMessage';
 import useVoiceCall from '../../hooks/useVoiceCall';
 import useVideoCall from '../../hooks/useVideoCall';
 import useEncryption from '../../hooks/useEncryption';
+import { useReconnection } from '../../hooks/useReconnection';
 import { forwardMessage } from '../../services/chat';
 import { buildWallpaperUrl, DEFAULT_WALLPAPER, fetchWallpaper, saveWallpaper } from '../../services/wallpaperService';
 
@@ -100,6 +101,36 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
   const [savingWallpaper, setSavingWallpaper] = useState(false);
   const [resolvedWallpaperUrl, setResolvedWallpaperUrl] = useState('');
   const [lightbox, setLightbox] = useState({ visible: false, url: null, type: null, filename: null });
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Handle forwarding message to selected user
+  const handleForwardToUser = (targetUserId) => {
+    if (!forwardingMessage) return;
+
+    const socket = getSocket();
+    if (!socket) return;
+
+    // Send the forwarded message
+    socket.emit('chat.send', {
+      receiverId: targetUserId,
+      type: forwardingMessage.type,
+      content: forwardingMessage.content,
+      forwarded: true, // Mark as forwarded
+      metadata: forwardingMessage.metadata,
+      replyTo: null // Don't preserve reply connection
+    });
+
+    // Close modal and reset state
+    setShowForwardModal(false);
+    setForwardingMessage(null);
+
+    // Optional: Switch to that chat?
+    // handleUserSelect(targetUserId);
+
+    // Show a quick toast or alert?
+    // alert('Message forwarded!');
+  };
 
   const handleOpenLightbox = (url, type, filename) => {
     setLightbox({ visible: true, url, type, filename });
@@ -183,6 +214,19 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
     onCallEnd: (duration) => handleCallEnd(duration, 'video')
   });
 
+  // SDE 3: Reconnection resilience
+  const {
+    connectionStatus: realConnectionStatus,
+    showRateLimitWarning,
+    rateLimitRetryAfter
+  } = useReconnection({
+    userId: user.id,
+    otherUserId,
+    conversationId,
+    messages,
+    setMessages
+  });
+
   // Scroll / UI state helpers (declared before smart-scroll useEffect)
   const [lastTypingTime, setLastTypingTime] = useState(0);
   const [sending, setSending] = useState(false);
@@ -205,14 +249,12 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
   };
 
   const isNearBottom = () => {
-    if (!chatContainerRef.current) return true;
-    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-    return scrollHeight - scrollTop - clientHeight < 100; // within 100px
+    // Virtuoso handles this internaly mostly, but we can check if we want
+    return true;
   };
 
   const handleScroll = () => {
-    if (!isNearBottom()) setUserScrolledUp(true);
-    else setUserScrolledUp(false);
+    // Deprecated in favor of Virtuoso startReached
   };
 
   // Avatar update handler
@@ -254,6 +296,60 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
     setMessages(decrypted);
   };
 
+  // Load more messages when scrolling up
+  const loadMoreMessages = async () => {
+    if (loadingMore || !hasMoreMessages || !conversationId) return;
+
+    try {
+      setLoadingMore(true);
+      const oldestMessage = messages[0];
+      if (!oldestMessage) {
+        setLoadingMore(false);
+        return;
+      }
+
+      console.log('Loading more messages before:', oldestMessage.timestamp);
+
+      const authenticatedApi = getAuthenticatedApi();
+      const res = await authenticatedApi.get('/api/chat/messages', {
+        params: {
+          conversationId,
+          limit: 50,
+          before: oldestMessage.timestamp
+        }
+      });
+
+      const newMessages = res.data;
+      console.log(`Loaded ${newMessages.length} older messages`);
+
+      if (newMessages.length < 50) {
+        setHasMoreMessages(false);
+      }
+
+      // Decrypt new chunk
+      const decryptedChunk = newMessages.map(msg => {
+        if (msg.ciphertext && msg.nonce && encryption.getKeyPair()) {
+          try {
+            const senderPublicKey = encryption.getPublicKeyForUser(msg.senderId);
+            if (senderPublicKey) {
+              const decryptedContent = encryption.decryptMessage(msg.ciphertext, msg.nonce, senderPublicKey);
+              if (decryptedContent) return { ...msg, content: decryptedContent, encrypted: true };
+            }
+          } catch (err) { }
+        }
+        return msg;
+      });
+
+      // Prepend without losing scroll position
+      setMessages(prev => [...decryptedChunk, ...prev]);
+
+    } catch (error) {
+      console.error('Error loading more messages:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   // WebSocket connection via hook
   const { onTyping: onTypingHook } = useChatSocket({
     token: localStorage.getItem('token'),
@@ -274,21 +370,10 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
     }
   });
 
-  // Smart scroll behavior - only scroll to bottom when appropriate
+  // Smart scroll behavior - managed by Virtuoso now
   useEffect(() => {
-    const currentLength = messages.length;
-    const wasAtBottom = !userScrolledUp;
-
-    // Scroll to bottom only if:
-    // 1. New message was added (not just array change)
-    // 2. User was already near bottom
-    // 3. Or it's the initial load
-    if (currentLength > prevMessagesLength && (wasAtBottom || prevMessagesLength === 0)) {
-      scrollToBottom();
-    }
-
-    setPrevMessagesLength(currentLength);
-  }, [messages, userScrolledUp, prevMessagesLength]);
+    // We can removed forced scrolling as Virtuoso followOutput handles it
+  }, [messages]);
 
   useEffect(() => {
     // apply saved theme on mount
@@ -364,8 +449,15 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
             const conversationId = conv.data._id || conv.data.id;
             setConversationId(conversationId);
             console.log('Loading messages for conversation:', conversationId);
-            const res = await authenticatedApi.get('/api/chat/messages?conversationId=' + conversationId);
-            console.log('Messages response:', res.data);
+
+            // Initial load with limit 50
+            const res = await authenticatedApi.get('/api/chat/messages?limit=50&conversationId=' + conversationId);
+
+            console.log(`Loaded ${res.data.length} messages`);
+
+            // If less than 50 messages returned, we've reached the end
+            setHasMoreMessages(res.data.length >= 50);
+
             // Use wrapper to decrypt messages on initial load
             setMessagesWithDecryption(res.data);
             // Mark messages as read when conversation is loaded
@@ -431,16 +523,99 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
 
     // Setup periodic cleanup of old temporary messages
     cleanupIntervalId = setInterval(() => {
-      setMessages(prev => prev.map(msg => {
-        if (msg.temporary && msg.timestamp) {
-          const messageAge = Date.now() - new Date(msg.timestamp).getTime();
-          if (messageAge > 15000) { return { ...msg, temporary: false }; }
-        }
-        return msg;
-      }));
-    }, 5000);
+      setMessages(prev => {
+        // Only update if we actually find a message that needs to be expired
+        const needsUpdate = prev.some(msg =>
+          msg.temporary && msg.timestamp && (Date.now() - new Date(msg.timestamp).getTime() > 15000)
+        );
+
+        if (!needsUpdate) return prev;
+
+        return prev.map(msg => {
+          if (msg.temporary && msg.timestamp) {
+            const messageAge = Date.now() - new Date(msg.timestamp).getTime();
+            if (messageAge > 15000) { return { ...msg, temporary: false }; }
+          }
+          return msg;
+        });
+      });
+    }, 10000);
     return () => { if (cleanupIntervalId) clearInterval(cleanupIntervalId); };
   }, []);
+
+  // CRITICAL FIX: Reload conversation when otherUserId changes (switching contacts)
+  useEffect(() => {
+    const reloadConversation = async () => {
+      if (!otherUserId || otherUserId === 'undefined' || otherUserId === 'null') {
+        console.log('[User Switch] No valid otherUserId, skipping reload');
+        return;
+      }
+
+      console.log('[User Switch] otherUserId changed to:', otherUserId);
+      console.log('[User Switch] Clearing old messages and reloading conversation...');
+
+      try {
+        // Clear old messages immediately to prevent cross-contamination
+        setMessages([]);
+        setHasMoreMessages(true);
+        setLoading(true);
+
+        // Update other user info
+        const found = availableUsers.find(u => u.id === otherUserId);
+        if (found) {
+          setOtherUser(found);
+          console.log('[User Switch] Set otherUser to:', found.username);
+        }
+
+        // Get/create conversation
+        const authenticatedApi = getAuthenticatedApi();
+        const conv = await authenticatedApi.post('/api/chat/conversation?other=' + otherUserId);
+        const conversationId = conv.data._id || conv.data.id;
+        setConversationId(conversationId);
+        console.log('[User Switch] Loaded conversation:', conversationId);
+
+        // Load messages for new conversation
+        const res = await authenticatedApi.get('/api/chat/messages?limit=50&conversationId=' + conversationId);
+        console.log(`[User Switch] Loaded ${res.data.length} messages for new conversation`);
+
+        setHasMoreMessages(res.data.length === 50);
+
+        // Decrypt messages
+        const decryptedMessages = await Promise.all(
+          res.data.map(async (msg) => {
+            if (msg.encryptionNonce && msg.content) {
+              try {
+                const { content, decrypted } = await encryption.decryptMessage(
+                  msg.content,
+                  msg.encryptionNonce,
+                  otherUserId
+                );
+                return { ...msg, content, decrypted };
+              } catch (e) {
+                console.error('Decryption failed for message:', e);
+                return msg;
+              }
+            }
+            return msg;
+          })
+        );
+
+        // Reverse to chronological order for display
+        setMessages(decryptedMessages.reverse());
+        setLoading(false);
+        console.log('[User Switch] Conversation reload complete');
+
+      } catch (error) {
+        console.error('[User Switch] Failed:', error);
+        setLoading(false);
+      }
+    };
+
+    // Only reload if we have available users loaded (avoid running on initial mount)
+    if (availableUsers.length > 0 && otherUserId) {
+      reloadConversation();
+    }
+  }, [otherUserId]); // Watch otherUserId changes
 
   useEffect(() => {
     const loadWallpaper = async () => {
@@ -924,11 +1099,39 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
           onOpenLightbox={handleOpenLightbox}
         />
 
+        {/* SDE 3: Connection Status Banner */}
+        {realConnectionStatus !== 'connected' && (
+          <div style={{
+            padding: '8px 16px',
+            backgroundColor: realConnectionStatus === 'reconnecting' ? '#f59e0b' : '#ef4444',
+            color: 'white',
+            textAlign: 'center',
+            fontSize: '14px',
+            fontWeight: '500',
+            zIndex: 1000
+          }}>
+            {realConnectionStatus === 'reconnecting' ? '🔄 Reconnecting...' : '⚠️ Disconnected'}
+          </div>
+        )}
+
+        {/* SDE 3: Rate Limit Warning */}
+        {showRateLimitWarning && (
+          <div style={{
+            padding: '8px 16px',
+            backgroundColor: '#fbbf24',
+            color: '#78350f',
+            textAlign: 'center',
+            fontSize: '14px',
+            fontWeight: '500',
+            zIndex: 1000
+          }}>
+            ⚠️ Too many messages. Please wait {rateLimitRetryAfter}s before sending again.
+          </div>
+        )}
+
         {/* Modern Messages Area */}
         <div
-          ref={chatContainerRef}
-          onScroll={handleScroll}
-          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: colors.bg, position: 'relative', willChange: 'transform' }}
+          style={{ flex: 1, overflow: 'hidden', background: colors.bg, position: 'relative', willChange: 'transform' }}
         >
           {wallpaperActive && resolvedWallpaperUrl && (
             <div
@@ -947,7 +1150,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
             />
           )}
           {/* Messages container with padding for mobile/desktop */}
-          <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', zIndex: 1 }}>
+          <div style={{ height: '100%', width: '100%', position: 'relative', zIndex: 1 }}>
             <ChatMessages
               messages={messages}
               user={user}
@@ -957,6 +1160,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
               onReply={handleReply}
               onOpenLightbox={handleOpenLightbox}
               onForward={(m) => { setForwardingMessage(m); setShowForwardModal(true); }}
+              onLoadMore={loadMoreMessages}
               colors={colors}
               theme={theme}
             />
@@ -967,9 +1171,6 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
           {userScrolledUp && (
             <ScrollToBottomButton onClick={() => { scrollToBottom(); setUserScrolledUp(false); }} />
           )}
-
-          {/* Scroll to bottom ref */}
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Modern Input Area */}
@@ -1091,6 +1292,9 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
             if (otherUserId === targetId) {
               setMessages(prev => [...prev, ...newMessages]);
               setTimeout(() => scrollToBottom(), 50);
+            } else {
+              // Switch to the target user's chat
+              selectOtherUser(targetId);
             }
             setShowForwardModal(false);
             setForwardingMessage(null);

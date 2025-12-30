@@ -28,6 +28,15 @@ export default function ComposeBar({
   const [isBotActive, setIsBotActive] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [stagedFile, setStagedFile] = useState(null); // Added for preview modal
+  const inputRef = React.useRef(null);
+
+  // Auto-focus input when replying
+  useEffect(() => {
+    if (replyingTo && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [replyingTo]);
+
 
   // Check if bot mode is active
   useEffect(() => {
@@ -154,6 +163,7 @@ export default function ComposeBar({
           </button>
 
           <input
+            ref={inputRef}
             style={{ flex: 1, minWidth: 0, border: 'none', background: 'rgba(255, 255, 255, 0.2)', color: colors.inputText, padding: 'clamp(6px, 2vw, 8px) clamp(8px, 2.5vw, 12px)', borderRadius: '20px', fontSize: 'clamp(0.875rem, 4vw, 1rem)', outline: 'none' }}
             type="text"
             placeholder={otherUser ? `Message ${otherUser.displayName || otherUser.username}` : 'Type a message...'}

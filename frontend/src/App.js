@@ -15,7 +15,7 @@ const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'))
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [view, setView] = useState('login'); // login, signup, verify, forgot-password, reset-password
   const [verificationEmail, setVerificationEmail] = useState('');
   const [showContactSwitcher, setShowContactSwitcher] = useState(false);
@@ -70,17 +70,17 @@ export default function App() {
   // Sync theme changes from localStorage
   useEffect(() => {
     const handleStorageChange = () => {
-      setTheme(localStorage.getItem('theme') || 'light');
+      setTheme(localStorage.getItem('theme') || 'dark');
     };
     window.addEventListener('storage', handleStorageChange);
 
     // Also check for theme changes every 100ms (for same-tab updates)
     const interval = setInterval(() => {
-      const currentTheme = localStorage.getItem('theme') || 'light';
+      const currentTheme = localStorage.getItem('theme') || 'dark';
       if (currentTheme !== theme) {
         setTheme(currentTheme);
       }
-    }, 100);
+    }, 2000);
 
     // Apply theme class to body for global styles (scrollbars etc)
     if (theme === 'dark') {
@@ -146,7 +146,7 @@ export default function App() {
     return (
       <div className={`min-h-screen flex items-center justify-center ${darkMode
         ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-black'
-        : 'bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300'
+        : 'bg-gradient-to-br from-indigo-200 via-blue-50 to-indigo-200'
         }`}>
         {/* Abstract shapes for visual interest behind glass */}
         <div className={`fixed top-1/4 left-1/4 w-72 h-72 rounded-full filter blur-xl opacity-70 animate-blob pointer-events-none will-change-transform ${darkMode ? 'bg-gray-700/30' : 'bg-gray-400/30'}`}></div>
@@ -225,7 +225,7 @@ export default function App() {
     <ErrorBoundary>
       <div className={`min-h-screen relative overflow-hidden ${darkMode
         ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-black'
-        : 'bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300'
+        : 'bg-gradient-to-br from-indigo-300 via-blue-200 to-indigo-300'
         }`}>
         {/* Abstract shapes for visual interest behind glass - Fixed positioning for entire app */}
         <div className={`fixed top-1/4 left-1/4 w-96 h-96 rounded-full filter blur-3xl opacity-50 animate-blob pointer-events-none -z-10 will-change-transform ${darkMode ? 'bg-gray-700/20' : 'bg-gray-400/30'}`}></div>
@@ -279,7 +279,7 @@ export default function App() {
                 onClick={toggleTheme}
                 className={`p-2 rounded-lg transition-all duration-200 ${darkMode
                   ? 'bg-gray-700 hover:bg-gray-600 text-yellow-400'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  : 'bg-blue-200 hover:bg-blue-400 text-blue-700'
                   }`}
                 title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               >
