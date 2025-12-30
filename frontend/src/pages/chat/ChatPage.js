@@ -1082,8 +1082,27 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         WebkitBackdropFilter: 'blur(20px)',
         borderRadius: '32px',
         border: darkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '2px solid rgba(255, 255, 255, 0.8)',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        position: 'relative' // Ensure positioning context for wallpaper
       }}>
+        {/* Wallpaper Layer - Fixed Background */}
+        {wallpaperActive && resolvedWallpaperUrl && (
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: wallpaperIsGradient ? resolvedWallpaperUrl : `url(${resolvedWallpaperUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: `blur(${wallpaperPreview.blur || 0}px)`,
+              opacity: wallpaperPreview.opacity ?? 0.9,
+              transition: 'opacity 0.2s ease, filter 0.2s ease',
+              zIndex: 0,
+              pointerEvents: 'none' // Ensure clicks pass through to messages
+            }}
+          />
+        )}
         {/* Modern Chat Header */}
         <ChatHeader
           otherUser={otherUser}
@@ -1145,24 +1164,17 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
         <div
           ref={chatContainerRef}
           onScroll={handleScroll}
-          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: colors.bg, position: 'relative', willChange: 'transform' }}
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            background: wallpaperActive ? 'transparent' : colors.bg,
+            position: 'relative',
+            willChange: 'transform',
+            zIndex: 1 // Ensure messages are above wallpaper
+          }}
         >
-          {wallpaperActive && resolvedWallpaperUrl && (
-            <div
-              aria-hidden
-              style={{
-                position: 'absolute',
-                inset: 0,
-                backgroundImage: wallpaperIsGradient ? resolvedWallpaperUrl : `url(${resolvedWallpaperUrl})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                filter: `blur(${wallpaperPreview.blur || 0}px)`,
-                opacity: wallpaperPreview.opacity ?? 0.9,
-                transition: 'opacity 0.2s ease, filter 0.2s ease',
-                zIndex: 0
-              }}
-            />
-          )}
+
           {/* Messages container with padding for mobile/desktop */}
           <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', zIndex: 1 }}>
             <ChatMessages
