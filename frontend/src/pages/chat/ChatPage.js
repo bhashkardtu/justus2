@@ -100,7 +100,6 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
   const [wallpaperPanelOpen, setWallpaperPanelOpen] = useState(false);
   const [savingWallpaper, setSavingWallpaper] = useState(false);
   const [resolvedWallpaperUrl, setResolvedWallpaperUrl] = useState('');
-
   const [lightbox, setLightbox] = useState({ visible: false, url: null, type: null, filename: null });
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -250,12 +249,21 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
   };
 
   const isNearBottom = () => {
-    // Virtuoso handles this internaly mostly, but we can check if we want
-    return true;
+    if (!chatContainerRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    return scrollHeight - scrollTop - clientHeight < 100; // within 100px
   };
 
   const handleScroll = () => {
-    // Deprecated in favor of Virtuoso startReached
+    if (!chatContainerRef.current) return;
+
+    // Check if scrolled near top to load more
+    if (chatContainerRef.current.scrollTop < 50 && hasMoreMessages && !loadingMore) {
+      loadMoreMessages();
+    }
+
+    if (!isNearBottom()) setUserScrolledUp(true);
+    else setUserScrolledUp(false);
   };
 
   // Avatar update handler
@@ -371,10 +379,21 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
     }
   });
 
-  // Smart scroll behavior - managed by Virtuoso now
+  // Smart scroll behavior - only scroll to bottom when appropriate
   useEffect(() => {
-    // We can removed forced scrolling as Virtuoso followOutput handles it
-  }, [messages]);
+    const currentLength = messages.length;
+    const wasAtBottom = !userScrolledUp;
+
+    // Scroll to bottom only if:
+    // 1. New message was added (not just array change)
+    // 2. User was already near bottom
+    // 3. Or it's the initial load
+    if (currentLength > prevMessagesLength && (wasAtBottom || prevMessagesLength === 0)) {
+      scrollToBottom();
+    }
+
+    setPrevMessagesLength(currentLength);
+  }, [messages, userScrolledUp, prevMessagesLength]);
 
   useEffect(() => {
     // apply saved theme on mount
@@ -524,23 +543,14 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
 
     // Setup periodic cleanup of old temporary messages
     cleanupIntervalId = setInterval(() => {
-      setMessages(prev => {
-        // Only update if we actually find a message that needs to be expired
-        const needsUpdate = prev.some(msg =>
-          msg.temporary && msg.timestamp && (Date.now() - new Date(msg.timestamp).getTime() > 15000)
-        );
-
-        if (!needsUpdate) return prev;
-
-        return prev.map(msg => {
-          if (msg.temporary && msg.timestamp) {
-            const messageAge = Date.now() - new Date(msg.timestamp).getTime();
-            if (messageAge > 15000) { return { ...msg, temporary: false }; }
-          }
-          return msg;
-        });
-      });
-    }, 10000);
+      setMessages(prev => prev.map(msg => {
+        if (msg.temporary && msg.timestamp) {
+          const messageAge = Date.now() - new Date(msg.timestamp).getTime();
+          if (messageAge > 15000) { return { ...msg, temporary: false }; }
+        }
+        return msg;
+      }));
+    }, 5000);
     return () => { if (cleanupIntervalId) clearInterval(cleanupIntervalId); };
   }, []);
 
@@ -1054,8 +1064,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
 
 
 
-
-  const wallpaperIsGradient = resolvedWallpaperUrl && resolvedWallpaperUrl.includes('gradient');
+  const wallpaperIsGradient = wallpaperPreview.sourceType === 'preset';
   const wallpaperActive = wallpaperSettings.sourceType !== 'none' && Boolean(resolvedWallpaperUrl);
 
   return (
@@ -1134,7 +1143,9 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
 
         {/* Modern Messages Area */}
         <div
-          style={{ flex: 1, overflow: 'hidden', background: colors.bg, position: 'relative', willChange: 'transform' }}
+          ref={chatContainerRef}
+          onScroll={handleScroll}
+          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: colors.bg, position: 'relative', willChange: 'transform' }}
         >
           {wallpaperActive && resolvedWallpaperUrl && (
             <div
@@ -1153,7 +1164,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
             />
           )}
           {/* Messages container with padding for mobile/desktop */}
-          <div style={{ height: '100%', width: '100%', position: 'relative', zIndex: 1 }}>
+          <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', zIndex: 1 }}>
             <ChatMessages
               messages={messages}
               user={user}
@@ -1163,7 +1174,6 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
               onReply={handleReply}
               onOpenLightbox={handleOpenLightbox}
               onForward={(m) => { setForwardingMessage(m); setShowForwardModal(true); }}
-              onLoadMore={loadMoreMessages}
               colors={colors}
               theme={theme}
             />
@@ -1174,6 +1184,9 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
           {userScrolledUp && (
             <ScrollToBottomButton onClick={() => { scrollToBottom(); setUserScrolledUp(false); }} />
           )}
+
+          {/* Scroll to bottom ref */}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Modern Input Area */}

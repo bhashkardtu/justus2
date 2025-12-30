@@ -80,7 +80,7 @@ export default function App() {
       if (currentTheme !== theme) {
         setTheme(currentTheme);
       }
-    }, 2000);
+    }, 100);
 
     // Apply theme class to body for global styles (scrollbars etc)
     if (theme === 'dark') {

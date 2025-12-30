@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Virtuoso } from 'react-virtuoso';
 import ReactDOM from 'react-dom';
 import AudioMessage from '../messages/AudioMessage';
 import ImageMessage from '../messages/ImageMessage';
@@ -254,11 +253,74 @@ const MessageItem = React.memo(({
             e.stopPropagation();
 
             // COMPREHENSIVE LOGGING
-            e.stopPropagation();
+            console.log('=== THREE-DOT BUTTON CLICKED ===');
 
+            // 1. Button itself (innermost child that was clicked)
+            const button = e.currentTarget;
+            const buttonRect = button.getBoundingClientRect();
+            console.log('1. THREE-DOT BUTTON:', {
+              element: button,
+              rect: buttonRect,
+              coords: {
+                top: buttonRect.top,
+                left: buttonRect.left,
+                right: buttonRect.right,
+                bottom: buttonRect.bottom,
+                width: buttonRect.width,
+                height: buttonRect.height
+              }
+            });
 
+            // 2. SVG child inside button
+            const svg = button.querySelector('svg');
+            if (svg) {
+              const svgRect = svg.getBoundingClientRect();
+              console.log('2. SVG CHILD:', {
+                element: svg,
+                rect: svgRect,
+                coords: { top: svgRect.top, left: svgRect.left, right: svgRect.right, bottom: svgRect.bottom }
+              });
+            }
 
+            // 3. Parent bubble
+            const bubble = button.parentElement;
+            const bubbleRect = bubble.getBoundingClientRect();
+            console.log('3. PARENT BUBBLE:', {
+              element: bubble,
+              rect: bubbleRect,
+              coords: { top: bubbleRect.top, left: bubbleRect.left, right: bubbleRect.right, bottom: bubbleRect.bottom }
+            });
 
+            // 4. All children of bubble
+            const bubbleChildren = Array.from(bubble.children);
+            console.log('4. BUBBLE CHILDREN COUNT:', bubbleChildren.length);
+            bubbleChildren.forEach((child, index) => {
+              const childRect = child.getBoundingClientRect();
+              console.log(`   Child ${index}:`, {
+                element: child,
+                tagName: child.tagName,
+                className: child.className,
+                rect: childRect,
+                coords: { top: childRect.top, left: childRect.left, right: childRect.right, bottom: childRect.bottom }
+              });
+            });
+
+            // 5. Viewport info
+            console.log('5. VIEWPORT:', {
+              width: window.innerWidth,
+              height: window.innerHeight,
+              scrollY: window.scrollY
+            });
+
+            console.log('=== END LOGGING ===\n');
+
+            // Create a synthetic event with the button's position
+            const syntheticEvent = {
+              ...e,
+              currentTarget: e.currentTarget,
+              preventDefault: () => { }
+            };
+            onContextMenu(syntheticEvent, msg);
           }}
         >
           <svg
@@ -288,7 +350,7 @@ const MessageItem = React.memo(({
   );
 });
 
-export default function ChatMessages({ messages, user, otherUser, onEdit, onDelete, onReply, onForward, colors, theme, onOpenLightbox, onLoadMore }) {
+export default function ChatMessages({ messages, user, otherUser, onEdit, onDelete, onReply, onForward, colors, theme, onOpenLightbox }) {
   const [showOriginalMap, setShowOriginalMap] = useState({});
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, message: null });
   const [deleteConfirmation, setDeleteConfirmation] = useState({ visible: false, message: null });
@@ -319,11 +381,22 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
     const elementRect = e.currentTarget.getBoundingClientRect();
     const isOwn = msg.senderId === user.id;
 
-
+    console.log('=== HANDLE CONTEXT MENU ===');
+    console.log('Element Rect:', {
+      top: elementRect.top,
+      left: elementRect.left,
+      right: elementRect.right,
+      bottom: elementRect.bottom,
+      width: elementRect.width,
+      height: elementRect.height
+    });
+    console.log('Is Own Message:', isOwn);
 
     // Get proper viewport dimensions (window.innerHeight can be wrong in some layouts)
     const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
     const viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+    console.log('Viewport (corrected):', { width: viewportWidth, height: viewportHeight });
+    console.log('window.innerHeight (old):', window.innerHeight);
 
     // Calculate position - elementRect gives us viewport-relative coordinates
     // which is perfect for fixed positioning
@@ -373,7 +446,8 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
       y = 10;
     }
 
-
+    console.log('FINAL MENU POSITION:', { x, y });
+    console.log('=== END HANDLE CONTEXT MENU ===\n');
 
     setContextMenu({
       visible: true,
@@ -421,42 +495,28 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
 
   return (
     <>
-      <Virtuoso
-        style={{ height: '100%', width: '100%' }}
-        totalCount={messages.length}
-        initialTopMostItemIndex={messages.length - 1}
-        followOutput={'auto'}
-        startReached={onLoadMore}
-        data={messages}
-        itemContent={(index, msg) => {
-          // Resolve reply content once here to pass down cleanly
-          const resolvedReply = msg.replyTo ? resolveReplyTo(msg.replyTo, messages) : null;
+      {messages.map((msg, idx) => {
+        // Resolve reply content once here to pass down cleanly
+        const resolvedReply = msg.replyTo ? resolveReplyTo(msg.replyTo, messages) : null;
 
-          return (
-            <div style={{ paddingBottom: '12px', paddingLeft: '12px', paddingRight: '12px' }}>
-              <MessageItem
-                key={msg.id || index}
-                msg={msg === resolvedReply ? { ...msg, replyTo: null } : { ...msg, replyTo: resolvedReply }}
-                user={user}
-                otherUser={otherUser}
-                colors={colors}
-                theme={theme}
-                onContextMenu={handleContextMenu}
-                onLongPressStart={handleLongPressStart}
-                onLongPressEnd={handleLongPressEnd}
-                onReply={onReply}
-                onOpenLightbox={onOpenLightbox}
-                showOriginal={showOriginalMap[msg.id]}
-                toggleShowOriginal={toggleShowOriginal}
-              />
-            </div>
-          );
-        }}
-        components={{
-          Header: () => <div style={{ height: '20px' }} />, // Top padding
-          Footer: () => <div style={{ height: '20px' }} />  // Bottom padding
-        }}
-      />
+        return (
+          <MessageItem
+            key={msg.id || idx}
+            msg={msg === resolvedReply ? { ...msg, replyTo: null } : { ...msg, replyTo: resolvedReply }} // Avoid circular or confusion
+            user={user}
+            otherUser={otherUser}
+            colors={colors}
+            theme={theme}
+            onContextMenu={handleContextMenu}
+            onLongPressStart={handleLongPressStart}
+            onLongPressEnd={handleLongPressEnd}
+            onReply={onReply}
+            onOpenLightbox={onOpenLightbox}
+            showOriginal={showOriginalMap[msg.id]}
+            toggleShowOriginal={toggleShowOriginal}
+          />
+        );
+      })}
 
       {/* Telegram-style Context Menu with backdrop overlay */}
       {contextMenu.visible && contextMenu.message && ReactDOM.createPortal(
@@ -479,6 +539,11 @@ export default function ChatMessages({ messages, user, otherUser, onEdit, onDele
           />
 
           {/* Context Menu */}
+          {console.log('RENDERING MENU WITH:', {
+            top: contextMenu.isMobile ? 'auto' : contextMenu.y,
+            left: contextMenu.isMobile ? 0 : contextMenu.x,
+            isMobile: contextMenu.isMobile
+          })}
           <div
             ref={menuRef}
             style={{
