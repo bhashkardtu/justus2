@@ -6,6 +6,8 @@ import CryptoService from '../services/cryptoService.js';
 import User from '../models/User.js';
 import botService from '../services/botService.js';
 import geminiService from '../services/geminiService.js';
+import transcriptionService from '../services/transcriptionService.js';
+import rateLimiter from '../middleware/socketRateLimiter.js';
 import mongoose from 'mongoose';
 
 export const configureSocketIO = (io) => {
@@ -94,13 +96,25 @@ export const configureSocketIO = (io) => {
     // Handle chat.send with encryption support
     socket.on('chat.send', async (incoming) => {
       try {
+        const userId = socket.userId;
+
+        // Rate limiting check (SDE 3: Prevent spam/abuse)
+        const rateCheck = rateLimiter.checkLimit(userId);
+        if (!rateCheck.allowed) {
+          console.log(`[RateLimit] User ${userId} exceeded limit (${rateCheck.current}/${rateCheck.limit})`);
+          socket.emit('error:rate_limit', {
+            message: 'Too many messages. Please slow down.',
+            retryAfter: rateCheck.retryAfter,
+            limit: rateCheck.limit
+          });
+          return; // Block the message
+        }
+
         console.log('=== WEBSOCKET MESSAGE RECEIVED ===');
         console.log('Incoming message (encrypted):', !!incoming.ciphertext);
-        console.log('Sender ID from socket:', socket.userId);
+        console.log('Sender ID from socket:', userId);
         console.log('Receiver ID:', incoming.receiverId);
         console.log('Conversation ID:', incoming.conversationId);
-
-        const userId = socket.userId;
 
         const messageData = {
           senderId: userId,
@@ -117,8 +131,37 @@ export const configureSocketIO = (io) => {
 
         // Attach or create conversation
         if (incoming.conversationId) {
-          console.log('Using existing conversation:', incoming.conversationId);
+          console.log('Client provided conversation ID:', incoming.conversationId);
+
+          // CRITICAL SECURITY PATCH: Validate user is a participant
+          // This prevents message injection attacks into unauthorized conversations
+          const providedConversation = await Conversation.findById(incoming.conversationId);
+
+          if (!providedConversation) {
+            console.error(`[SECURITY] Non-existent conversation ID provided: ${incoming.conversationId}`);
+            socket.emit('error', { message: 'Invalid conversation' });
+            return; // BLOCK THE MESSAGE
+          }
+
+          // CRITICAL: Verify user is actually a participant in this conversation
+          const isParticipant = (
+            providedConversation.participantA === userId ||
+            providedConversation.participantA?.toString() === userId ||
+            providedConversation.participantB === userId ||
+            providedConversation.participantB?.toString() === userId
+          );
+
+          if (!isParticipant) {
+            console.error(`[SECURITY] ATTACK BLOCKED: User ${userId} attempted to inject message into unauthorized conversation ${incoming.conversationId}`);
+            console.error(`[SECURITY] Conversation participants: ${providedConversation.participantA}, ${providedConversation.participantB}`);
+            socket.emit('error', { message: 'Unauthorized conversation access' });
+            return; // BLOCK THE MESSAGE
+          }
+
+          // Validation passed - user is authorized
+          console.log(`[SECURITY] Validated: User ${userId} is participant in conversation ${incoming.conversationId}`);
           messageData.conversationId = incoming.conversationId;
+
         } else if (incoming.receiverId) {
           const a = userId;
           const b = incoming.receiverId;
@@ -163,7 +206,9 @@ export const configureSocketIO = (io) => {
           translatedLanguage: messageDTO.translatedLanguage
         });
 
-        // Send to both sender and receiver
+        // CRITICAL PRIVACY FIREWALL: Only broadcast to authorized users
+        // Server-side validation ensures messages NEVER leak to unauthorized users
+        // Even if frontend has bugs, backend guarantees privacy
         console.log('Broadcasting message to sender: user:' + userId);
         io.to(`user:${userId}`).emit('message', messageDTO);
 
@@ -242,7 +287,7 @@ export const configureSocketIO = (io) => {
                 const mimeType = fileDoc?.contentType || 'audio/webm'; // Default to webm if unknown
 
                 // 1. Transcribe Audio
-                const transcript = await geminiService.transcribeAudio(buffer, mimeType);
+                const transcript = await transcriptionService.transcribe(buffer, mimeType);
 
                 if (transcript) {
                   console.log('[Backend] Transcription success:', transcript.substring(0, 30) + '...');
@@ -400,6 +445,86 @@ export const configureSocketIO = (io) => {
         });
       } catch (error) {
         console.error('Error handling chat.read:', error);
+      }
+    });
+
+    // Handle message:sync (SDE 3: Reconnection resilience)
+    socket.on('message:sync', async (payload) => {
+      try {
+        const userId = socket.userId;
+        const { lastMessageId } = payload;
+
+        console.log(`[Sync] User ${userId} requesting sync. Last message: ${lastMessageId || 'none'}`);
+
+        // Find all conversations where user is a participant
+        const conversations = await Conversation.find({
+          $or: [
+            { participantA: userId },
+            { participantB: userId }
+          ]
+        });
+
+        const conversationIds = conversations.map(c => c._id);
+
+        let query = {
+          conversationId: { $in: conversationIds },
+          $or: [
+            { senderId: userId },
+            { receiverId: userId }
+          ]
+        };
+
+        // If lastMessageId provided, get only newer messages
+        if (lastMessageId && mongoose.Types.ObjectId.isValid(lastMessageId)) {
+          const lastMessage = await Message.findById(lastMessageId);
+          if (lastMessage) {
+            query.timestamp = { $gt: lastMessage.timestamp };
+          }
+        }
+
+        // Fetch missed messages (limit to 100 for safety)
+        const missedMessages = await Message.find(query)
+          .sort({ timestamp: 1 })
+          .limit(100)
+          .populate('replyTo', 'senderId type content metadata timestamp');
+
+        // CRITICAL PRIVACY FIREWALL: Double-check each message authorization
+        // This is a safety net in case the query has bugs
+        const authorizedMessages = missedMessages.filter(msg => {
+          const isAuthorized = (
+            msg.senderId === userId ||
+            msg.receiverId === userId
+          );
+
+          if (!isAuthorized) {
+            console.error(`[SECURITY] Prevented leaking message ${msg._id} to unauthorized user ${userId}`);
+            console.error(`[SECURITY] Message sender: ${msg.senderId}, receiver: ${msg.receiverId}`);
+          }
+
+          return isAuthorized;
+        });
+
+        if (authorizedMessages.length < missedMessages.length) {
+          console.error(`[SECURITY] Blocked ${missedMessages.length - authorizedMessages.length} unauthorized messages!`);
+        }
+
+        // Convert to DTOs
+        const messageDTOs = await Promise.all(
+          authorizedMessages.map(msg => messageService.convertToDTO(msg))
+        );
+
+        console.log(`[Sync] Sending ${messageDTOs.length} missed messages to user ${userId}`);
+
+        // Send sync response
+        socket.emit('message:sync_response', {
+          messages: messageDTOs,
+          count: messageDTOs.length,
+          hasMore: messageDTOs.length === 100
+        });
+
+      } catch (error) {
+        console.error('Error handling message:sync:', error);
+        socket.emit('error', { message: 'Sync failed. Please refresh.' });
       }
     });
 

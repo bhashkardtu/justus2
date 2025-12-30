@@ -30,14 +30,14 @@ export class MessageService {
       translatedLanguage: message.translatedLanguage,
       showOriginal: message.showOriginal
     };
-    
+
     // If message exists in database but doesn't have delivered flag set,
     // consider it delivered (for backward compatibility)
     if (message._id && !dto.delivered) {
       dto.delivered = true;
       dto.deliveredAt = message.timestamp || new Date();
     }
-    
+
     // Fetch sender information (skip for bot messages)
     if (message.senderId && message.senderId !== 'bot') {
       const sender = await User.findById(message.senderId);
@@ -50,18 +50,18 @@ export class MessageService {
       dto.senderUsername = 'bot';
       dto.senderDisplayName = 'Bot Assistant';
     }
-    
+
     return dto;
   }
-  
+
   async convertToDTOs(messages) {
     // Get all unique sender IDs (exclude 'bot')
     const senderIds = [...new Set(messages.map(msg => msg.senderId).filter(id => id !== 'bot'))];
-    
+
     // Fetch all users in batch for efficiency
     const users = await User.find({ _id: { $in: senderIds } });
     const userMap = new Map(users.map(user => [user._id.toString(), user]));
-    
+
     // Convert messages to DTOs
     return messages.map(message => {
       const dto = {
@@ -90,14 +90,14 @@ export class MessageService {
         translatedLanguage: message.translatedLanguage,
         showOriginal: message.showOriginal
       };
-      
+
       // If message exists in database but doesn't have delivered flag set,
       // consider it delivered (for backward compatibility)
       if (message._id && !dto.delivered) {
         dto.delivered = true;
         dto.deliveredAt = message.timestamp || new Date();
       }
-      
+
       // Handle bot messages specially
       if (message.senderId === 'bot') {
         dto.senderUsername = 'bot';
@@ -109,7 +109,7 @@ export class MessageService {
           dto.senderDisplayName = sender.displayName;
         }
       }
-      
+
       return dto;
     });
   }
@@ -118,8 +118,8 @@ export class MessageService {
     try {
       const contentToTranslate = textOverride || messageData.content;
 
-      console.log('[Translation] Processing message:', { 
-        contentLength: contentToTranslate?.length, 
+      console.log('[Translation] Processing message:', {
+        contentLength: contentToTranslate?.length,
         type: messageData.type,
         senderId: messageData.senderId,
         receiverId: messageData.receiverId,
@@ -149,7 +149,7 @@ export class MessageService {
       // If languages differ, translate
       if (senderLang !== receiverLang) {
         console.log(`[Translation] Translating message from ${senderLang} to ${receiverLang}...`);
-        
+
         const translatedText = await translationService.translate(
           contentToTranslate,
           senderLang,

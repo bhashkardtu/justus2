@@ -25,7 +25,12 @@ export const getMessages = async (req, res) => {
     console.log('Conversation ID:', conversationId);
 
 
-    const limit = parseInt(req.query.limit) || 0; // 0 means all (backward compatibility)
+
+    // Enforce pagination limit: default 50, max 100
+    // If limit is 0 (or undefined), default to 50 instead of ALL to prevent massive payload
+    let limit = parseInt(req.query.limit);
+    if (!limit || limit <= 0) limit = 50;
+    if (limit > 100) limit = 100; // Cap at 100 for safety
     const beforeStr = req.query.before;
 
     if (conversationId) {

@@ -109,6 +109,11 @@ const messageSchema = new mongoose.Schema({
   collection: 'messages'
 });
 
+// Indexes for performance
+messageSchema.index({ conversationId: 1, timestamp: -1 }); // Fast history retrieval
+messageSchema.index({ senderId: 1, timestamp: -1 });      // Fast "my sent" retrieval
+messageSchema.index({ receiverId: 1, timestamp: -1 });    // Fast "my received" retrieval
+
 const Message = mongoose.model('Message', messageSchema);
 
 export default Message;
