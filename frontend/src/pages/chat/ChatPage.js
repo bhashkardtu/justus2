@@ -100,6 +100,7 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
   const [wallpaperPanelOpen, setWallpaperPanelOpen] = useState(false);
   const [savingWallpaper, setSavingWallpaper] = useState(false);
   const [resolvedWallpaperUrl, setResolvedWallpaperUrl] = useState('');
+
   const [lightbox, setLightbox] = useState({ visible: false, url: null, type: null, filename: null });
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -1053,6 +1054,8 @@ export default function ChatPage({ user, onLogout, onUserUpdate, showContactSwit
 
 
 
+
+  const wallpaperIsGradient = resolvedWallpaperUrl && resolvedWallpaperUrl.includes('gradient');
   const wallpaperActive = wallpaperSettings.sourceType !== 'none' && Boolean(resolvedWallpaperUrl);
 
   return (

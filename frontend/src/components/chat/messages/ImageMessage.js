@@ -100,7 +100,7 @@ export default function ImageMessage({ message, mine, onOpenLightbox }) {
           <img
             src={imageUrl}
             alt="Shared image"
-            className="max-w-xs rounded-lg cursor-pointer transition-all duration-300 hover:scale-105 shadow-md"
+            className="w-64 h-64 object-cover rounded-lg cursor-pointer transition-all duration-300 hover:scale-105 shadow-md"
             onClick={() => onOpenLightbox?.(imageUrl, 'image', message.metadata?.filename)}
             onError={() => setError(true)}
           />
